@@ -1,6 +1,7 @@
-import re
 import logging
-from datetime import date, timedelta
+import re
+from datetime import date
+from datetime import timedelta
 from hashlib import md5
 from pprint import pprint
 
