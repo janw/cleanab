@@ -6,4 +6,8 @@ Import ING DiBa transactions into YNAB using its API. My rationale for creating 
 
 ## Running with Docker
 
+Copy [config.yaml.sample](config.yaml.sample) to a location of your chosing, adjust to your setup, and mount it to `/app/config.yaml` in a container:
+
+```bash
 docker run -v /path/to/your/config.yaml:/app/config.yaml registry.gitlab.com/janw/cleanab
+```
