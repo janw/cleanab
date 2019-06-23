@@ -33,6 +33,7 @@ class FieldCleaner:
 
         return replace
 
+    @staticmethod
     def _regex_sub_instance(pattern, replacement="", casesensitive=False):
         logger.debug(f"Compiling regex for '{pattern}' => '{replacement}'")
         regex = re.compile(pattern, flags=re.IGNORECASE)
