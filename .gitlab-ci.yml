@@ -10,9 +10,11 @@ pre-commit framework:
     key: pip-cache
     paths:
       - .cache/pip
+      - .cache/pre-commit
       - .pytest_cache
   variables:
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    PRE_COMMIT_HOME: "$CI_PROJECT_DIR/.cache/pre-commit"
   before_script:
     - pip install -U pre-commit
   script:
