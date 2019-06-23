@@ -3,12 +3,13 @@ name = "diba2ynab"
 version = "0.1.0"
 description = ""
 authors = ["Jan Willhaus <mail@janwillhaus.de>"]
+license = "Apache-2.0"
 
 [tool.poetry.dependencies]
 python = "^3.7"
 fints = "^2.1"
 pyyaml = "^5.1"
-ynab-python = {git = "https://github.com/deanmcgregor/ynab-python.git"}
+ynab-python = {git = "https://github.com/janw/ynab-python.git"}
 
 [tool.poetry.dev-dependencies]
 
