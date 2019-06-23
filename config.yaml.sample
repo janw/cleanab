@@ -1,0 +1,54 @@
+---
+ynab:
+  access_token: ""
+  budget_id: ""
+  cash_account_id: ""
+
+accounts:
+  - dumper: :fints
+    iban:
+    ynab_id: ""
+    username: ""
+    password:
+    fints_blz: ""
+    fints_endpoint: https://fints.ing-diba.de/fints/
+
+replacements:
+  applicant_name:
+    - pattern: 'Amzn Mktp De\*.*$'
+      repl: 'Amazon Marketplace'
+    - 'Visa Card Transact '
+    - pattern: '^Visa'
+    - string: Gmbh
+      repl: GmbH
+    - pattern: 'Sumup  \*'
+    - pattern: '^Amz\*'
+      repl: 'Amazon: '
+    - pattern: '^Visa '
+    - string: 'Itunes.Com/Bill'
+      repl: iTunes/App Store
+
+  purpose:
+    - pattern: '([^\s])bargeldauszahlung'
+      repl: '\1 Bargeldauszahlung'
+    - pattern: 'Erstatt\s'
+      repl: 'Erstattung '
+    - 'Auszahlung0,00'
+    - pattern: '([^\s])kaufumsatz'
+      repl: '\1 Kaufumsatz'
+    - pattern: '([^\s])gutschrift'
+      repl: '\1 Gutschrift'
+    - pattern: 'Kaufumsatz(\d{2})\.(\d{2})(\d{2})(\d{2})(\d{2})'
+      repl: 'Kaufumsatz (\1.\2., \3:\4:\5) '
+    - pattern: 'Kaufumsatz(\d{2})\.(\d{2}) '
+      repl: 'Kaufumsatz (\1.\2.) '
+    - pattern: 'Gutschriftsbeleg(\d{2})\.(\d{2})'
+      repl: 'Gutschriftsbeleg (\1.\2.)'
+    - pattern: 'Bargeldauszahlung(\d{2})\.(\d{2})(\d{2})(\d{2})(\d{2})'
+      repl: 'Bargeldauszahlung (\1.\2., \3:\4:\5) '
+    - pattern: '\(Visa Card\)'
+    - pattern: 'Arn\d{8,}$'
+    - string: 'Auslandseinsatzentgeltkreditkarte'
+      repl: ' Auslandseinsatzentgelt'
+    - pattern: '(\w)kurs ([\d\,]+)'
+      repl: '\1 Kurs: \2'
