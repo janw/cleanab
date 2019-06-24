@@ -100,24 +100,25 @@ def retrieve_transactions(account_id, fints, start_date, end_date):
 
 def process_transactions(account_id, transactions, cleaner):
     for ta in transactions:
-        data = cleaner.clean(ta.data.copy())
-
-        latest_date = ta.data.get("entry_date")
-        if latest_date > date.today():
+        entry_date = ta.data["entry_date"]
+        if entry_date > date.today():
             continue
-
+        entry_date = entry_date.strftime("%Y-%m-%d")
+        data = cleaner.clean(ta.data.copy())
+        amount = round(data["amount"].amount * 1000)
         uuid = md5(
             (
-                ta.data["entry_date"].strftime("%Y-%m-%d")
+                entry_date
                 + ta.data["applicant_name"]
-                + ta.data["purpose"]
+                + (ta.data.get("purpose", None) or "")
+                + str(amount)
             ).encode("utf-8")
         ).hexdigest()
 
         yield {
             "account_id": account_id,
-            "date": latest_date.strftime("%Y-%m-%d"),
-            "amount": round(data["amount"].amount * 1000),
+            "date": entry_date,
+            "amount": amount,
             "payee_name": data["applicant_name"],
             "memo": data["purpose"],
             "import_id": uuid,
@@ -145,7 +146,12 @@ def main():
         )
 
         today = date.today()
-        earliest = max([today - timedelta(days=30), date(2019, 6, 1)])
+        earliest = max(
+            [
+                today - timedelta(days=config["timespan"]["maximum_days"]),
+                config["timespan"]["earliest_date"],
+            ]
+        )
         transactions = retrieve_transactions(
             account_id, fints, start_date=earliest, end_date=today
         )

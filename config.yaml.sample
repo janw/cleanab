@@ -1,4 +1,8 @@
 ---
+timespan:
+  earliest_date: 2019-06-01
+  maximum_days: 30
+
 ynab:
   access_token: ""
   budget_id: ""
