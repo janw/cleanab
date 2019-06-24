@@ -3,7 +3,6 @@ import re
 from datetime import date
 from datetime import timedelta
 from hashlib import md5
-from pprint import pprint
 
 import yaml
 import ynab
@@ -12,6 +11,8 @@ from fints.client import FinTS3PinTanClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+today = date.today()
 
 
 class FieldCleaner:
@@ -93,83 +94,98 @@ class FieldCleaner:
         return pat.group(1) + pat.group(2).lower()
 
 
-def retrieve_transactions(account_id, fints, start_date, end_date):
-    acc = [acc for acc in fints.get_sepa_accounts() if acc.iban == account_id][0]
-    return fints.get_transactions(acc, start_date=start_date, end_date=end_date)
+class Account:
+    account_id = None
+
+    def __init__(self, config):
+        self.account_id = config["iban"]
+        self.ynab_id = config["ynab_id"]
+        self.fints = FinTS3PinTanClient(
+            config["fints_blz"],
+            config["username"],
+            config["password"],
+            config["fints_endpoint"],
+        )
+
+    def retrieve_transactions(self, start_date, end_date=today):
+        fints_accounts = self.fints.get_sepa_accounts()
+        acc = [acc for acc in fints_accounts if acc.iban == self.account_id][0]
+        return self.fints.get_transactions(
+            acc, start_date=start_date, end_date=end_date
+        )
 
 
-def process_transactions(account_id, transactions, cleaner, cleared=False):
-    for ta in transactions:
-        entry_date = ta.data["entry_date"]
-        if entry_date > date.today():
-            continue
-        entry_date = entry_date.strftime("%Y-%m-%d")
-        data = cleaner.clean(ta.data.copy())
+class Cleanab:
+    earliest_date = date(2000, 1, 1)
+    max_days_delta = date(2000, 1, 1)
+    cleared = False
+
+    def __init__(self, config):
+
+        if "timespan" in config and "maximum_days" in config["timespan"]:
+            self.max_days_delta = today - timedelta(
+                days=config["timespan"]["maximum_days"]
+            )
+        if "timespan" in config and "earliest_date" in config["timespan"]:
+            self.earliest_date = config["timespan"]["earliest_date"]
+        if "mark_cleared" in config["ynab"]:
+            self.cleared = config["ynab"]["mark_cleared"]
+
+        self.accounts = [Account(acc_conf) for acc_conf in config["accounts"]]
+        self.cleaner = FieldCleaner(config["replacements"])
+        self.budget_id = config["ynab"]["budget_id"]
+
+        ynab_conf = ynab.Configuration()
+        ynab_conf.api_key["Authorization"] = config["ynab"]["access_token"]
+        ynab_conf.api_key_prefix["Authorization"] = "Bearer"
+        self.ynab = ynab.TransactionsApi(ynab.ApiClient(ynab_conf))
+
+    def process_accounts(self):
+        earliest = max([self.earliest_date, self.max_days_delta])
+
+        for acc in self.accounts:
+            transactions = acc.retrieve_transactions(start_date=earliest)
+            processed = self.process_transactions(acc.ynab_id, transactions)
+
+            result = self.ynab.bulk_create_transactions(
+                self.budget_id, ynab.BulkTransactions(processed)
+            )
+            logger.debug(result)
+
+    def process_transactions(self, ynab_id, transactions):
+        return [
+            self._transaction_processor(ynab_id, ta)
+            for ta in transactions
+            if ta.data["entry_date"] <= today
+        ]
+
+    def _transaction_processor(self, ynab_id, transaction):
+        entry_date = transaction.data["entry_date"].strftime("%Y-%m-%d")
+        data = self.cleaner.clean(transaction.data.copy())
         amount = round(data["amount"].amount * 1000)
         uuid = md5(
             (
                 entry_date
-                + ta.data["applicant_name"]
-                + (ta.data.get("purpose", None) or "")
+                + transaction.data["applicant_name"]
+                + (transaction.data.get("purpose", None) or "")
                 + str(amount)
             ).encode("utf-8")
         ).hexdigest()
 
-        yield {
-            "account_id": account_id,
+        return {
+            "account_id": ynab_id,
             "date": entry_date,
             "amount": amount,
             "payee_name": data["applicant_name"],
             "memo": data["purpose"],
             "import_id": uuid,
-            "cleared": "cleared" if cleared else "uncleared",
+            "cleared": "cleared" if self.cleared else "uncleared",
         }
 
 
-def main():
+if __name__ == "__main__":
     with open("config.yaml") as fp:
         config = yaml.load(fp, Loader=yaml.FullLoader)
 
-    cleaner = FieldCleaner(config["replacements"])
-
-    ynab_conf = ynab.Configuration()
-    ynab_conf.api_key["Authorization"] = config["ynab"]["access_token"]
-    ynab_conf.api_key_prefix["Authorization"] = "Bearer"
-    api = ynab.TransactionsApi(ynab.ApiClient(ynab_conf))
-
-    for account in config["accounts"]:
-        account_id = account["iban"]
-        fints = FinTS3PinTanClient(
-            account["fints_blz"],
-            account["username"],
-            account["password"],
-            account["fints_endpoint"],
-        )
-
-        today = date.today()
-        earliest = max(
-            [
-                today - timedelta(days=config["timespan"]["maximum_days"]),
-                config["timespan"]["earliest_date"],
-            ]
-        )
-        transactions = retrieve_transactions(
-            account_id, fints, start_date=earliest, end_date=today
-        )
-
-        processed = list(
-            process_transactions(
-                account["ynab_id"],
-                transactions,
-                cleaner,
-                cleared=config["ynab"].get("mark_cleared", False),
-            )
-        )
-        result = api.bulk_create_transactions(
-            config["ynab"]["budget_id"], ynab.BulkTransactions(processed)
-        )
-        pprint(result)
-
-
-if __name__ == "__main__":
-    main()
+    c = Cleanab(config)
+    c.process_accounts()
