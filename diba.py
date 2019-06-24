@@ -98,7 +98,7 @@ def retrieve_transactions(account_id, fints, start_date, end_date):
     return fints.get_transactions(acc, start_date=start_date, end_date=end_date)
 
 
-def process_transactions(account_id, transactions, cleaner):
+def process_transactions(account_id, transactions, cleaner, cleared=False):
     for ta in transactions:
         entry_date = ta.data["entry_date"]
         if entry_date > date.today():
@@ -122,6 +122,7 @@ def process_transactions(account_id, transactions, cleaner):
             "payee_name": data["applicant_name"],
             "memo": data["purpose"],
             "import_id": uuid,
+            "cleared": "cleared" if cleared else "uncleared",
         }
 
 
@@ -157,7 +158,12 @@ def main():
         )
 
         processed = list(
-            process_transactions(account["ynab_id"], transactions, cleaner)
+            process_transactions(
+                account["ynab_id"],
+                transactions,
+                cleaner,
+                cleared=config["ynab"].get("mark_cleared", False),
+            )
         )
         result = api.bulk_create_transactions(
             config["ynab"]["budget_id"], ynab.BulkTransactions(processed)
