@@ -109,7 +109,7 @@ def process_transactions(account_id, transactions, cleaner, cleared=False):
         uuid = md5(
             (
                 entry_date
-                + ta.data["applicant_name"]
+                + (ta.data.get("applicant_name", None) or "")
                 + (ta.data.get("purpose", None) or "")
                 + str(amount)
             ).encode("utf-8")
