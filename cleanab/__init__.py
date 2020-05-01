@@ -101,6 +101,7 @@ def retrieve_transactions(account_id, fints, start_date, end_date):
 def process_transactions(account_id, transactions, cleaner, cleared=False):
     for ta in transactions:
         entry_date = ta.data["entry_date"]
+
         if entry_date > date.today():
             continue
         entry_date = entry_date.strftime("%Y-%m-%d")
