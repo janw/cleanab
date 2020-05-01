@@ -1,3 +1,3 @@
-from cleanab import main
+from cleanab.main import main
 
 main()

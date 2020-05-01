@@ -1,17 +1,20 @@
-FROM python:3.7-alpine as base
+FROM registry.gitlab.com/janw/python-poetry:3.7-alpine as base
 
 WORKDIR /app
 COPY poetry.lock pyproject.toml ./
 
-RUN apk add --no-cache curl git && \
-    curl -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py | python && \
-    /root/.poetry/bin/poetry config settings.virtualenvs.in-project true && \
-    /root/.poetry/bin/poetry install
+RUN poetry export --without-hashes -f requirements.txt -o requirements.txt
 
 FROM python:3.7-alpine
 
 WORKDIR /app
-COPY --from=base /app/.venv ./.venv
-COPY diba.py ./
+COPY --from=base /app/requirements.txt ./
 
-ENTRYPOINT [ "./.venv/bin/python", "diba.py" ]
+RUN \
+    apk add --update --virtual .deps git && \
+    pip install --no-cache-dir -r requirements.txt && \
+    apk del .deps
+
+COPY cleanab ./cleanab
+
+ENTRYPOINT [ "python", "-m", "cleanab" ]
