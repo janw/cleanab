@@ -1,20 +1,33 @@
 import re
 
+import click
 from logzero import logger
 
 
+re_wordsplits = re.compile(r"([^\s]+\s)")
+
+
 class FieldCleaner:
-    def __init__(self, replacements):
+    cleaners = None
+    pre_cleaners = None
+    fields = set()
+
+    def __init__(self, pre_replacements, replacements):
 
         self.cleaners = {}
+        self.pre_cleaners = {}
         for field, contents in replacements.items():
-            logger.info(f"Compiling cleaners for {field}")
+            logger.info(f"Compiling replacements for {field}")
             self.cleaners[field] = FieldCleaner.compile(contents)
+            self.fields.add(field)
+
+        for field, contents in pre_replacements.items():
+            logger.info(f"Compiling pre-replacements for {field}")
+            self.pre_cleaners[field] = FieldCleaner.compile(contents)
+            self.fields.add(field)
 
     @staticmethod
     def _replacer_instance(string, replacement=""):
-        logger.debug(f"Compiling replacement for '{string}' => '{replacement}'")
-
         def replace(x):
             if isinstance(x, str):
                 return x.replace(string, replacement)
@@ -24,11 +37,10 @@ class FieldCleaner:
 
     @staticmethod
     def _regex_sub_instance(pattern, replacement="", casesensitive=False):
-        logger.debug(f"Compiling regex for '{pattern}' => '{replacement}'")
-        regex = re.compile(pattern, flags=re.IGNORECASE)
-
         if casesensitive:
             regex = re.compile(pattern)
+        else:
+            regex = re.compile(pattern, flags=re.IGNORECASE)
 
         def substitute(x):
             if isinstance(x, str):
@@ -64,17 +76,39 @@ class FieldCleaner:
         return cleaners
 
     def clean(self, data):
-        for field, cleaners in self.cleaners.items():
-            if field in data and data[field] is not None:
-                data[field] = data[field].title()
-                previous = data[field]
-                for cleaner in cleaners:
-                    data[field] = cleaner(data[field])
+        for field in self.fields:
+            if field not in data or data[field] is None:
+                continue
+            previous = cleaned = data[field]
 
-                data[field] = data[field].strip()
-                if previous != data[field]:
-                    logger.debug(f"Cleaned {field} '{previous}' => '{data[field]}'")
+            cleaners = self.cleaners.get(field, [])
+            pre_cleaners = self.pre_cleaners.get(field, [])
 
+            for cleaner in pre_cleaners:
+                cleaned = cleaner(cleaned)
+
+            # When text is all uppercase, try to capitalize it more nicely
+            if cleaned.upper() == cleaned:
+                cleaned = "".join(
+                    s.lstrip().capitalize() for s in re_wordsplits.split(cleaned)
+                )
+            for cleaner in cleaners:
+                cleaned = cleaner(cleaned)
+
+            cleaned = cleaned.strip()
+            # cleaned = cleaned[0].upper() + cleaned[1:]
+            if previous != cleaned:
+                interdot = click.style("\u00B7", fg="blue")
+                previous = previous.replace(
+                    " ", interdot + click.style("", fg="red", reset=False)
+                )
+                cleaned = cleaned.replace(
+                    " ", interdot + click.style("", fg="green", reset=False)
+                )
+                click.echo(f"{field:>16s}" + click.style(f" - '{previous}'", fg="red"))
+                click.echo(f"{'=>':>16s}" + click.style(f" + '{cleaned}'", fg="green"))
+
+                data[field] = cleaned
         return data
 
     @staticmethod

@@ -18,6 +18,10 @@ accounts:
     fints_blz: ""
     fints_endpoint: https://fints.ing-diba.de/fints/
 
+pre-replacements:
+  purpose:
+    - "This must go before further processing"
+
 replacements:
   applicant_name:
     - pattern: 'Amzn Mktp De\*.*$'

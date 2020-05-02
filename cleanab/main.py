@@ -18,7 +18,9 @@ def main():
         config = yaml.load(fp, Loader=yaml.FullLoader)
 
     logger.debug("Creating field cleaner instance")
-    cleaner = FieldCleaner(config["replacements"])
+    cleaner = FieldCleaner(
+        config.get("pre-replacements", []), config.get("replacements", [])
+    )
 
     ynab_conf = ynab.Configuration()
     ynab_conf.api_key["Authorization"] = config["ynab"]["access_token"]
