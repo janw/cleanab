@@ -12,10 +12,9 @@ from cleanab.transactions import process_transactions
 from cleanab.transactions import retrieve_transactions
 
 
-def main():
+def main(dry_run, configfile):
     logger.debug("Loading config file")
-    with open("config.yaml") as fp:
-        config = yaml.load(fp, Loader=yaml.FullLoader)
+    config = yaml.safe_load(configfile)
 
     logger.debug("Creating field cleaner instance")
     cleaner = FieldCleaner(
@@ -55,6 +54,7 @@ def main():
                 cleared=config["ynab"].get("mark_cleared", False),
             )
         )
+    if not dry_run:
         result = api.bulk_create_transactions(
             config["ynab"]["budget_id"], ynab.BulkTransactions(processed)
         )
