@@ -1,10 +1,3 @@
-import logging
-
-import logzero
-
-logzero.__name__ = "fints"
-logzero.setup_logger(level=logging.ERROR)
-
-from cleanab.cli import cli  # noqa: F401
+from cleanab.cli import cli
 
 cli(auto_envvar_prefix="CLEANAB")

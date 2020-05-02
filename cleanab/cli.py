@@ -1,6 +1,12 @@
-import click
+import logging
 
-from cleanab.main import main
+import click
+import logzero
+
+logzero.__name__ = "fints"
+logzero.setup_logger(level=logging.ERROR)
+
+from cleanab.main import main  # noqa: F401
 
 
 @click.command()
