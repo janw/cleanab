@@ -7,13 +7,12 @@ def retrieve_transactions(account_id, fints, start_date, end_date):
     return fints.get_transactions(acc, start_date=start_date, end_date=end_date)
 
 
-def process_transactions(account_id, transactions, cleaner, cleared=False):
-    for ta in transactions:
-        if "entry_date" in ta.data:
-            entry_date = ta.data["entry_date"]
-        else:
-            entry_date = ta.data["date"]
+def process_transactions(
+    account_id, transactions, cleaner, cleared=False, skippable=None
+):
+    skippable = [] if not skippable else skippable
 
+    for ta in transactions:
         if "entry_date" in ta.data:
             entry_date = ta.data["entry_date"]
         else:
@@ -21,9 +20,9 @@ def process_transactions(account_id, transactions, cleaner, cleared=False):
 
         if entry_date > date.today():
             continue
+
         entry_date = entry_date.strftime("%Y-%m-%d")
-        data = cleaner.clean(ta.data.copy())
-        amount = round(data["amount"].amount * 1000)
+        amount = round(ta.data["amount"].amount * 1000)
         uuid = md5(
             (
                 entry_date
@@ -33,12 +32,17 @@ def process_transactions(account_id, transactions, cleaner, cleared=False):
             ).encode("utf-8")
         ).hexdigest()
 
+        if uuid in skippable:
+            continue
+
+        data = cleaner.clean(ta.data.copy())
+        purpose = data.get("purpose", "")
         yield {
             "account_id": account_id,
             "date": entry_date,
             "amount": amount,
             "payee_name": data["applicant_name"],
-            "memo": data["purpose"],
+            "memo": purpose,
             "import_id": uuid,
             "cleared": "cleared" if cleared else "uncleared",
         }
