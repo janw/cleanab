@@ -37,6 +37,9 @@ def process_transactions(
 
         data = cleaner.clean(ta.data.copy())
         purpose = data.get("purpose", "")
+        if purpose and len(purpose) > 200:
+            purpose = purpose[:200]
+
         yield {
             "account_id": account_id,
             "date": entry_date,
