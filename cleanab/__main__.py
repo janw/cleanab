@@ -2,8 +2,8 @@ import logging
 
 import logzero
 
-logzero.__name__ = ""
-logzero.setup_logger(level=logging.WARNING)
+logzero.__name__ = "fints"
+logzero.setup_logger(level=logging.ERROR)
 
 from cleanab.cli import cli  # noqa: F401
 
