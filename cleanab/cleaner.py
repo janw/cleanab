@@ -18,12 +18,12 @@ class FieldCleaner:
         self.pre_cleaners = {}
         for field, contents in replacements.items():
             logger.info(f"Compiling replacements for {field}")
-            self.cleaners[field] = FieldCleaner.compile(contents)
+            self.cleaners[field] = self.compile(contents)
             self.fields.add(field)
 
         for field, contents in pre_replacements.items():
             logger.info(f"Compiling pre-replacements for {field}")
-            self.pre_cleaners[field] = FieldCleaner.compile(contents)
+            self.pre_cleaners[field] = self.compile(contents)
             self.fields.add(field)
 
     @staticmethod
@@ -96,7 +96,6 @@ class FieldCleaner:
                 cleaned = cleaner(cleaned)
 
             cleaned = cleaned.strip()
-            # cleaned = cleaned[0].upper() + cleaned[1:]
             if previous != cleaned:
                 interdot = click.style("\u00B7", fg="blue")
                 previous = previous.replace(
@@ -110,7 +109,3 @@ class FieldCleaner:
 
                 data[field] = cleaned
         return data
-
-    @staticmethod
-    def lowercase_tld_match(pat):
-        return pat.group(1) + pat.group(2).lower()
