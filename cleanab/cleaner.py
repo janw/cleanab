@@ -101,11 +101,11 @@ class FieldCleaner:
                 previous = previous.replace(
                     " ", interdot + click.style("", fg="red", reset=False)
                 )
-                cleaned = cleaned.replace(
+                colored = cleaned.replace(
                     " ", interdot + click.style("", fg="green", reset=False)
                 )
                 click.echo(f"{field:>16s}" + click.style(f" - '{previous}'", fg="red"))
-                click.echo(f"{'=>':>16s}" + click.style(f" + '{cleaned}'", fg="green"))
+                click.echo(f"{'=>':>16s}" + click.style(f" + '{colored}'", fg="green"))
 
                 data[field] = cleaned
         return data
