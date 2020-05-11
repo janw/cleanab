@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from hashlib import md5
 
@@ -5,6 +6,9 @@ from hashlib import md5
 def retrieve_transactions(account_id, fints, start_date, end_date):
     acc = [acc for acc in fints.get_sepa_accounts() if acc.iban == account_id][0]
     return fints.get_transactions(acc, start_date=start_date, end_date=end_date)
+
+
+re_cc_purpose = re.compile(r"(\S+)(.*)")
 
 
 def process_transactions(
@@ -23,20 +27,24 @@ def process_transactions(
 
         entry_date = entry_date.strftime("%Y-%m-%d")
         amount = round(ta.data["amount"].amount * 1000)
+        applicant_name = ta.data.get("applicant_name", None) or ""
+        purpose = ta.data.get("purpose", None) or ""
         uuid = md5(
-            (
-                entry_date
-                + (ta.data.get("applicant_name", None) or "")
-                + (ta.data.get("purpose", None) or "")
-                + str(amount)
-            ).encode("utf-8")
+            (entry_date + applicant_name + purpose + str(amount)).encode("utf-8")
         ).hexdigest()
 
-        if uuid in skippable:
-            continue
+        # if uuid in skippable:
+        #     continue
 
-        data = cleaner.clean(ta.data.copy())
-        purpose = data.get("purpose", "")
+        local_data = ta.data.copy()
+        if len(applicant_name) == 0 and len(purpose) > 0:
+            splits = re_cc_purpose.search(purpose).groups()
+            if len(splits) > 1:
+                local_data["applicant_name"] = splits[0]
+                local_data["purpose"] = " ".join(splits[1:])
+
+        local_data = cleaner.clean(local_data)
+        purpose = local_data.get("purpose", "")
         if purpose and len(purpose) > 200:
             purpose = purpose[:200]
 
@@ -44,7 +52,7 @@ def process_transactions(
             "account_id": account_id,
             "date": entry_date,
             "amount": amount,
-            "payee_name": data["applicant_name"],
+            "payee_name": local_data["applicant_name"],
             "memo": purpose,
             "import_id": uuid,
             "cleared": "cleared" if cleared else "uncleared",

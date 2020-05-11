@@ -217,10 +217,10 @@ elementpath = ">=1.4.0,<1.5.0"
 [[package]]
 category = "main"
 description = "YNAB API Endpoints"
-name = "ynab-python"
+name = "ynab-api"
 optional = false
 python-versions = "*"
-version = "1.0.0"
+version = "1.1.0"
 
 [package.dependencies]
 certifi = "*"
@@ -229,12 +229,12 @@ six = ">=1.10"
 urllib3 = ">=1.15"
 
 [package.source]
-reference = "83b533589e4ef7c979f15ab0b6e0bfa8e6cd2673"
+reference = "b3cbde56395f694bb7f7cc700bc90b38fd51531b"
 type = "git"
-url = "https://github.com/janw/ynab-python.git"
+url = "https://github.com/dmlerner/ynab-api"
 
 [metadata]
-content-hash = "a1fc40831dfe3de2d730c04c385c582fa228c3f6a760204f668a3e5c877d98e3"
+content-hash = "e74f0cc2eb00f84f139b79d1164d34f18dd207bba616081e5956e3fbe7b4c743"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -331,4 +331,4 @@ xmlschema = [
     {file = "xmlschema-1.1.3-py3-none-any.whl", hash = "sha256:71419f840d5c97e6b6d66c643320137c4e4ecd797eeca9eaa5486cbac480f70a"},
     {file = "xmlschema-1.1.3.tar.gz", hash = "sha256:6562e94719a1b49edba2f3bd3815c34f7868293e2b01cfa34b0343a4d439a318"},
 ]
-ynab-python = []
+ynab-api = []

@@ -3,7 +3,7 @@ from logzero import logger
 
 def print_results(results):
     logger.info("Done.")
-    bulk = results.data.bulk
+    bulk = results.data
     for entry in getattr(bulk, "duplicate_import_ids", []):
         logger.info(f"Duplicate transactions: {entry}")
 

@@ -2,7 +2,7 @@ from datetime import date
 from datetime import timedelta
 
 import yaml
-import ynab
+import ynab_api as ynab
 from fints.client import FinTS3PinTanClient
 from logzero import logger
 
@@ -12,19 +12,24 @@ from cleanab.transactions import process_transactions
 from cleanab.transactions import retrieve_transactions
 
 
+def get_ynab_api(config):
+    ynab_conf = ynab.Configuration()
+    ynab_conf.api_key["Authorization"] = config["ynab"]["access_token"]
+    ynab_conf.api_key_prefix["Authorization"] = "Bearer"
+    return ynab.TransactionsApi(ynab.ApiClient(ynab_conf))
+
+
 def main(dry_run, configfile):
     logger.debug("Loading config file")
     config = yaml.safe_load(configfile)
+    api = get_ynab_api(config)
+    budget_id = config["ynab"]["budget_id"]
 
     logger.debug("Creating field cleaner instance")
     cleaner = FieldCleaner(
         config.get("pre-replacements", []), config.get("replacements", [])
     )
 
-    ynab_conf = ynab.Configuration()
-    ynab_conf.api_key["Authorization"] = config["ynab"]["access_token"]
-    ynab_conf.api_key_prefix["Authorization"] = "Bearer"
-    api = ynab.TransactionsApi(ynab.ApiClient(ynab_conf))
     today = date.today()
     earliest = max(
         [
@@ -49,9 +54,7 @@ def main(dry_run, configfile):
             account_id, fints, start_date=earliest, end_date=today
         )
         try:
-            existing_transactions = api.get_transactions(
-                config["ynab"]["budget_id"], since_date=earliest
-            )
+            existing_transactions = api.get_transactions(budget_id, since_date=earliest)
             existing_ids = [
                 t.import_id
                 for t in existing_transactions.data.transactions
@@ -74,7 +77,14 @@ def main(dry_run, configfile):
         processed += new_transactions
 
     if not dry_run:
-        result = api.bulk_create_transactions(
-            config["ynab"]["budget_id"], ynab.BulkTransactions(processed)
+        result = api.create_transaction(
+            budget_id, ynab.SaveTransactionsWrapper(transactions=processed)
         )
         print_results(result)
+
+    dupes = getattr(result.data, "duplicate_import_ids", [])
+    if dupes:
+        logger.info("Updating duplicates")
+        updateable = list(filter(lambda x: x["import_id"] in dupes, processed))
+        transactions = ynab.SaveTransactionsWrapper(transactions=updateable)
+        api.update_transactions(budget_id, transactions)
