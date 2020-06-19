@@ -82,9 +82,9 @@ def main(dry_run, configfile):
         )
         print_results(result)
 
-    dupes = getattr(result.data, "duplicate_import_ids", [])
-    if dupes:
-        logger.info("Updating duplicates")
-        updateable = list(filter(lambda x: x["import_id"] in dupes, processed))
-        transactions = ynab.SaveTransactionsWrapper(transactions=updateable)
-        api.update_transactions(budget_id, transactions)
+    # dupes = getattr(result.data, "duplicate_import_ids", [])
+    # if dupes:
+    #     logger.info("Updating duplicates")
+    #     updateable = list(filter(lambda x: x["import_id"] in dupes, processed))
+    #     transactions = ynab.SaveTransactionsWrapper(transactions=updateable)
+    #     api.update_transactions(budget_id, transactions)
