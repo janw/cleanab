@@ -8,7 +8,7 @@ def retrieve_transactions(account_id, fints, start_date, end_date):
     return fints.get_transactions(acc, start_date=start_date, end_date=end_date)
 
 
-re_cc_purpose = re.compile(r"(\S+)(.*)")
+re_cc_purpose = re.compile(r"^(.+?)([A-Z]{3})\s{3,}([0-9,]+)(.*)$")
 
 
 def process_transactions(
@@ -38,8 +38,9 @@ def process_transactions(
 
         local_data = ta.data.copy()
         if len(applicant_name) == 0 and len(purpose) > 0:
-            splits = re_cc_purpose.search(purpose).groups()
-            if len(splits) > 1:
+            result = re_cc_purpose.search(purpose)
+            if result:
+                splits = result.groups()
                 local_data["applicant_name"] = splits[0]
                 local_data["purpose"] = " ".join(splits[1:])
 
