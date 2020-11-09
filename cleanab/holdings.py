@@ -20,14 +20,14 @@ def process_holdings(holdings, api, budget_id, ynab_id):
         return None
 
     uuid = md5(
-        (entry_date + "Valuation Adjustment" + "" + str(amount)).encode("utf-8")
+        (entry_date + "Value Adjustment" + "" + str(amount)).encode("utf-8")
     ).hexdigest()
 
     yield {
         "account_id": ynab_id,
         "date": entry_date,
         "amount": amount,
-        "payee_name": "Valuation Adjustment",
+        "payee_name": "Value Adjustment",
         "import_id": uuid,
         # "cleared": "cleared" if cleared else "uncleared",
     }

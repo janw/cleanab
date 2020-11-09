@@ -60,7 +60,7 @@ def main(dry_run, configfile):
             account["password"],
             account["fints_endpoint"],
         )
-        if "type" in account and account["type"] == "holding":
+        if account.get("type", "default").lower() == "holding":
             holdings = retrieve_holdings(account_id, fints)
 
             new_transactions = process_holdings(
