@@ -8,6 +8,8 @@ from logzero import logger
 
 from cleanab.cleaner import FieldCleaner
 from cleanab.formatter import print_results
+from cleanab.holdings import process_holdings
+from cleanab.holdings import retrieve_holdings
 from cleanab.transactions import process_transactions
 from cleanab.transactions import retrieve_transactions
 
@@ -19,10 +21,18 @@ def get_ynab_api(config):
     return ynab.TransactionsApi(ynab.ApiClient(ynab_conf))
 
 
+def get_ynab_account_api(config):
+    ynab_conf = ynab.Configuration()
+    ynab_conf.api_key["Authorization"] = config["ynab"]["access_token"]
+    ynab_conf.api_key_prefix["Authorization"] = "Bearer"
+    return ynab.AccountsApi(ynab.ApiClient(ynab_conf))
+
+
 def main(dry_run, configfile):
     logger.debug("Loading config file")
     config = yaml.safe_load(configfile)
     api = get_ynab_api(config)
+    accounts_api = get_ynab_account_api(config)
     budget_id = config["ynab"]["budget_id"]
 
     logger.debug("Creating field cleaner instance")
@@ -50,30 +60,40 @@ def main(dry_run, configfile):
             account["password"],
             account["fints_endpoint"],
         )
-        transactions = retrieve_transactions(
-            account_id, fints, start_date=earliest, end_date=today
-        )
-        try:
-            existing_transactions = api.get_transactions(budget_id, since_date=earliest)
-            existing_ids = [
-                t.import_id
-                for t in existing_transactions.data.transactions
-                if t.import_id
-            ]
-        except Exception:
-            logger.error("Could not retrieve existing transactions")
-            existing_ids = []
+        if "type" in account and account["type"] == "holding":
+            holdings = retrieve_holdings(account_id, fints)
 
-        new_transactions = list(
-            process_transactions(
-                account["ynab_id"],
-                transactions,
-                cleaner,
-                cleared=config["ynab"].get("mark_cleared", False),
-                skippable=existing_ids,
+            new_transactions = process_holdings(
+                holdings, accounts_api, budget_id, account["ynab_id"]
             )
-        )
-        logger.debug(f"Got {len(new_transactions)} new transactions")
+        else:
+            transactions = retrieve_transactions(
+                account_id, fints, start_date=earliest, end_date=today
+            )
+            try:
+                existing_transactions = api.get_transactions(
+                    budget_id, since_date=earliest
+                )
+                existing_ids = [
+                    t.import_id
+                    for t in existing_transactions.data.transactions
+                    if t.import_id
+                ]
+            except Exception:
+                logger.error("Could not retrieve existing transactions")
+                existing_ids = []
+
+            new_transactions = list(
+                process_transactions(
+                    account["ynab_id"],
+                    transactions,
+                    cleaner,
+                    cleared=config["ynab"].get("mark_cleared", False),
+                    skippable=existing_ids,
+                )
+            )
+            logger.debug(f"Got {len(new_transactions)} new transactions")
+
         processed += new_transactions
 
     if not dry_run:
