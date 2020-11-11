@@ -74,7 +74,7 @@ def main(dry_run, configfile):
             )
         else:
             transactions = retrieve_transactions(
-                account.iban, fints, start_date=earliest, end_date=today
+                account, fints, start_date=earliest, end_date=today
             )
             try:
                 existing_transactions = api.get_transactions(
@@ -91,7 +91,7 @@ def main(dry_run, configfile):
 
             new_transactions = list(
                 process_transactions(
-                    account["ynab_id"],
+                    account,
                     transactions,
                     cleaner,
                     cleared=config["ynab"].get("mark_cleared", False),
