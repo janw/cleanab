@@ -94,7 +94,6 @@ def main(dry_run, configfile):
                     account,
                     transactions,
                     cleaner,
-                    cleared=config["ynab"].get("mark_cleared", False),
                     skippable=existing_ids,
                 )
             )
