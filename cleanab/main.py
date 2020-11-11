@@ -12,6 +12,8 @@ from cleanab.holdings import process_holdings
 from cleanab.holdings import retrieve_holdings
 from cleanab.transactions import process_transactions
 from cleanab.transactions import retrieve_transactions
+from cleanab.types import Account
+from cleanab.types import AccountType
 
 
 def get_ynab_api(config):
@@ -35,6 +37,8 @@ def main(dry_run, configfile):
     accounts_api = get_ynab_account_api(config)
     budget_id = config["ynab"]["budget_id"]
 
+    accounts = [Account(**acc) for acc in config["accounts"]]
+
     logger.debug("Creating field cleaner instance")
     cleaner = FieldCleaner(
         config.get("pre-replacements", []), config.get("replacements", [])
@@ -50,25 +54,27 @@ def main(dry_run, configfile):
     logger.info(f"Checking back until {earliest}")
 
     processed = []
-    for account in config["accounts"]:
-        account_id = account["iban"]
-        logger.info(f"Processing account {account_id}")
+    for account in accounts:
+        logger.info(f"Processing account {account.iban}")
 
         fints = FinTS3PinTanClient(
-            account["fints_blz"],
-            account["username"],
-            account["password"],
-            account["fints_endpoint"],
+            account.fints_blz,
+            account.fints_username,
+            account.fints_password,
+            account.fints_endpoint,
         )
-        if account.get("type", "default").lower() == "holding":
-            holdings = retrieve_holdings(account_id, fints)
+        if account.account_type == AccountType.HOLDING:
+            holdings = retrieve_holdings(account, fints)
 
             new_transactions = process_holdings(
-                holdings, accounts_api, budget_id, account["ynab_id"]
+                account,
+                holdings,
+                accounts_api,
+                budget_id,
             )
         else:
             transactions = retrieve_transactions(
-                account_id, fints, start_date=earliest, end_date=today
+                account.iban, fints, start_date=earliest, end_date=today
             )
             try:
                 existing_transactions = api.get_transactions(
@@ -96,7 +102,7 @@ def main(dry_run, configfile):
 
         processed += new_transactions
 
-    if not dry_run:
+    if not dry_run and processed:
         result = api.create_transaction(
             budget_id, ynab.SaveTransactionsWrapper(transactions=processed)
         )
