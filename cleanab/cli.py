@@ -17,6 +17,12 @@ from cleanab.main import main  # noqa: F401
     help="Only fetch and clean up the transactions. None will be added to YNAB.",
 )
 @click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    help="Show replacements made to the received data",
+)
+@click.option(
     "-c",
     "--config",
     "configfile",

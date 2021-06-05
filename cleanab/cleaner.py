@@ -12,10 +12,11 @@ class FieldCleaner:
     pre_cleaners = None
     fields = set()
 
-    def __init__(self, pre_replacements, replacements):
+    def __init__(self, pre_replacements, replacements, verbose=False):
 
         self.cleaners = {}
         self.pre_cleaners = {}
+        self.verbose = verbose
         for field, contents in replacements.items():
             logger.info(f"Compiling replacements for {field}")
             self.cleaners[field] = self.compile(contents)
@@ -97,15 +98,20 @@ class FieldCleaner:
 
             cleaned = cleaned.strip()
             if previous != cleaned:
-                interdot = click.style("\u00B7", fg="blue")
-                previous = previous.replace(
-                    " ", interdot + click.style("", fg="red", reset=False)
-                )
-                colored = cleaned.replace(
-                    " ", interdot + click.style("", fg="green", reset=False)
-                )
-                click.echo(f"{field:>16s}" + click.style(f" - '{previous}'", fg="red"))
-                click.echo(f"{'=>':>16s}" + click.style(f" + '{colored}'", fg="green"))
+                if self.verbose:
+                    interdot = click.style("\u00B7", fg="blue")
+                    previous = previous.replace(
+                        " ", interdot + click.style("", fg="red", reset=False)
+                    )
+                    colored = cleaned.replace(
+                        " ", interdot + click.style("", fg="green", reset=False)
+                    )
+                    click.echo(
+                        f"{field:>16s}" + click.style(f" - '{previous}'", fg="red")
+                    )
+                    click.echo(
+                        f"{'=>':>16s}" + click.style(f" + '{colored}'", fg="green")
+                    )
 
                 data[field] = cleaned
         return data

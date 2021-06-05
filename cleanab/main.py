@@ -30,7 +30,8 @@ def get_ynab_account_api(config):
     return ynab.AccountsApi(ynab.ApiClient(ynab_conf))
 
 
-def main(dry_run, configfile):
+
+def main(dry_run, configfile, verbose):
     logger.debug("Loading config file")
     config = yaml.safe_load(configfile)
     api = get_ynab_api(config)
@@ -41,7 +42,9 @@ def main(dry_run, configfile):
 
     logger.debug("Creating field cleaner instance")
     cleaner = FieldCleaner(
-        config.get("pre-replacements", []), config.get("replacements", [])
+        config.get("pre-replacements", []),
+        config.get("replacements", []),
+        verbose,
     )
 
     today = date.today()
@@ -55,61 +58,21 @@ def main(dry_run, configfile):
 
     processed = []
     for account in accounts:
-        logger.info(f"Processing account {account.iban}")
+        logger.info(f"Processing {account}")
 
-        fints = FinTS3PinTanClient(
-            account.fints_blz,
-            account.fints_username,
-            account.fints_password,
-            account.fints_endpoint,
-        )
-        if account.account_type == AccountType.HOLDING:
-            holdings = retrieve_holdings(account, fints)
-
-            new_transactions = process_holdings(
-                account,
-                holdings,
-                accounts_api,
-                budget_id,
-            )
-        else:
-            transactions = retrieve_transactions(
-                account, fints, start_date=earliest, end_date=today
-            )
-            try:
-                existing_transactions = api.get_transactions(
-                    budget_id, since_date=earliest
-                )
-                existing_ids = [
-                    t.import_id
-                    for t in existing_transactions.data.transactions
-                    if t.import_id
-                ]
-            except Exception:
-                logger.error("Could not retrieve existing transactions")
-                existing_ids = []
-
+        try:
             new_transactions = list(
-                process_transactions(
-                    account,
-                    transactions,
-                    cleaner,
-                    skippable=existing_ids,
-                )
+                process_account(account, accounts_api, budget_id, earliest, cleaner)
             )
-            logger.debug(f"Got {len(new_transactions)} new transactions")
-
-        processed += new_transactions
+            logger.info(f"Got {len(new_transactions)} new transactions")
+            processed += new_transactions
+        except Exception as exc:
+            logger.error("Processing %s failed", account)
+            logger.error(str(exc))
 
     if not dry_run and processed:
         result = api.create_transaction(
             budget_id, ynab.SaveTransactionsWrapper(transactions=processed)
         )
-        print_results(result)
-
-    # dupes = getattr(result.data, "duplicate_import_ids", [])
-    # if dupes:
-    #     logger.info("Updating duplicates")
-    #     updateable = list(filter(lambda x: x["import_id"] in dupes, processed))
-    #     transactions = ynab.SaveTransactionsWrapper(transactions=updateable)
-    #     api.update_transactions(budget_id, transactions)
+        if verbose:
+            print_results(result)
