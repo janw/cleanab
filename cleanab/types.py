@@ -1,17 +1,17 @@
-from enum import auto
 from enum import Enum
 
 from .validators import is_iban
 from .validators import is_uuid
 
 
-class AccountType(Enum):
-    CHECKING = auto()
-    MASTERCARD = auto()
-    HOLDING = auto()
+class AccountType(str, Enum):
+    CHECKING = "checking"
+    MASTERCARD = "mastercard"
+    HOLDING = "holding"
 
 
 class Account:
+    name = ""
     iban = ""
     ynab_id = ""
     cleared = False
@@ -33,6 +33,7 @@ class Account:
         account_type=AccountType.CHECKING.name,
         default_cleared=False,
         default_approved=False,
+        friendly_name="",
         **kwargs,
     ):
         if not is_iban(iban):
@@ -63,3 +64,10 @@ class Account:
 
         self.default_cleared = "cleared" if default_cleared else "uncleared"
         self.default_approved = default_approved
+
+        self.name = friendly_name
+
+    def __str__(self):
+        if self.name:
+            return f"{self.acc_type} account {self.name} (…{self.iban[-4:]})"
+        return f"{self.acc_type} account {self.iban}"

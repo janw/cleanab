@@ -15,6 +15,8 @@ from cleanab.transactions import retrieve_transactions
 from cleanab.types import Account
 from cleanab.types import AccountType
 
+TODAY = date.today()
+
 
 def get_ynab_api(config):
     ynab_conf = ynab.Configuration()
@@ -29,6 +31,48 @@ def get_ynab_account_api(config):
     ynab_conf.api_key_prefix["Authorization"] = "Bearer"
     return ynab.AccountsApi(ynab.ApiClient(ynab_conf))
 
+
+def process_account(account, accounts_api, budget_id, earliest, cleaner):
+
+    fints = FinTS3PinTanClient(
+        account.fints_blz,
+        account.fints_username,
+        account.fints_password,
+        account.fints_endpoint,
+    )
+
+    if account.account_type == AccountType.HOLDING:
+        holdings = retrieve_holdings(account, fints)
+
+        yield from process_holdings(
+            account,
+            holdings,
+            accounts_api,
+            budget_id,
+        )
+    else:
+        transactions = retrieve_transactions(
+            account, fints, start_date=earliest, end_date=TODAY
+        )
+        try:
+            existing_transactions = accounts_api.get_transactions(
+                budget_id, since_date=earliest
+            )
+            existing_ids = [
+                t.import_id
+                for t in existing_transactions.data.transactions
+                if t.import_id
+            ]
+        except Exception:
+            logger.warning("Could not retrieve existing transactions")
+            existing_ids = []
+
+        yield from process_transactions(
+            account,
+            transactions,
+            cleaner,
+            skippable=existing_ids,
+        )
 
 
 def main(dry_run, configfile, verbose):
@@ -47,10 +91,9 @@ def main(dry_run, configfile, verbose):
         verbose,
     )
 
-    today = date.today()
     earliest = max(
         [
-            today - timedelta(days=config["timespan"]["maximum_days"]),
+            TODAY - timedelta(days=config["timespan"]["maximum_days"]),
             config["timespan"]["earliest_date"],
         ]
     )
