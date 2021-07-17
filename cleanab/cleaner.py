@@ -1,103 +1,74 @@
-import re
-
 import click
 from logzero import logger
 
-
-re_wordsplits = re.compile(r"([^\s\-]+(\s|$))")
+from . import utils
+from .schemas import FIELDS_TO_CLEAN_UP
 
 
 class FieldCleaner:
     cleaners = None
-    pre_cleaners = None
-    fields = set()
+    finalizers = None
+    fields = FIELDS_TO_CLEAN_UP
 
-    def __init__(self, pre_replacements, replacements, finalizer, verbose=False):
-
+    def __init__(self, replacements, finalizing, verbose=False):
         self.cleaners = {}
-        self.pre_cleaners = {}
+        self.finalizers = {}
         self.verbose = verbose
-        self.finalizer = finalizer
 
         for field, contents in replacements.items():
             logger.info(f"Compiling replacements for {field}")
-            self.cleaners[field] = self.compile(contents)
-            self.fields.add(field)
+            self.cleaners[field] = self.compile_cleaners(contents)
 
-        for field, contents in pre_replacements.items():
-            logger.info(f"Compiling pre-replacements for {field}")
-            self.pre_cleaners[field] = self.compile(contents)
-            self.fields.add(field)
+        for field, contents in finalizing.items():
+            self.finalizers[field] = self.compile_finalizer(contents)
 
-    @staticmethod
-    def _replacer_instance(string, replacement=""):
-        def replace(x):
-            return x.replace(string, replacement)
+    def compile_finalizer(config):
+        def finalizer(string):
+            if config["capitalize"]:
+                string = utils.capitalize_string(string)
 
-        return replace
+            if config["strip"]:
+                string = string.strip()
 
-    @staticmethod
-    def _regex_sub_instance(*, pattern, repl="", casesensitive=False):
-        regex = re.compile(
-            pattern,
-            flags=re.IGNORECASE if casesensitive else 0,
-        )
+            return string
 
-        def substitute(x):
-            return regex.sub(repl, x)
-
-        return substitute
+        return finalizer
 
     @staticmethod
-    def compile_entry(entry):
+    def compile_single_cleaner(entry):
         if isinstance(entry, str):
-            return FieldCleaner._replacer_instance(entry)
+            return utils.simple_replace_instance(entry)
 
         if isinstance(entry, dict):
-            return FieldCleaner._regex_sub_instance(**entry)
+            return utils.regex_sub_instance(**entry)
 
         raise ValueError(f"Invalid replacement definition: {entry!r}")
 
     @staticmethod
-    def compile(field):
-        return [FieldCleaner.compile_entry(e) for e in field]
+    def compile_cleaners(entries):
+        return [FieldCleaner.compile_single_cleaner(e) for e in entries]
 
-    def iter_field_data(self, data):
+    def iter_valid_data_fields(self, data):
         for field in self.fields:
             if field not in data:
                 continue
 
-            previous = data[field]
-            if previous is None or len(previous) == 0:
+            value = data[field]
+            if value is None or len(value) == 0:
                 continue
 
-            cleaners = self.cleaners.get(field, [])
-            pre_cleaners = self.pre_cleaners.get(field, [])
-            finalizer = self.finalizer.get(field, [])
-
-            yield field, previous, cleaners, pre_cleaners, finalizer
-
-    @staticmethod
-    def _replace_capitalize(match):
-        return match.group(1).capitalize()
+            yield field, value
 
     def clean(self, data):
-        for field, previous, cleaners, pre_cleaners, finalizer in self.iter_field_data(
-            data
-        ):
+        for field, previous in self.iter_valid_data_fields(data):
             cleaned = previous
 
-            for cleaner in pre_cleaners:
+            for cleaner in self.cleaners.get(field, []):
                 cleaned = cleaner(cleaned)
 
-            if finalizer["capitalize"]:
-                cleaned = re_wordsplits.sub(FieldCleaner._replace_capitalize, cleaned)
+            if field in self.finalizers:
+                cleaned = self.finalizers[field](cleaned)
 
-            for cleaner in cleaners:
-                cleaned = cleaner(cleaned)
-
-            if finalizer["strip"]:
-                cleaned = cleaned.strip()
             data[field] = cleaned
 
             self._echo_if_cleaned(field, previous, cleaned)

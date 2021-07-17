@@ -128,7 +128,7 @@ FINALIZER_DEFINITION = {
 }
 
 
-_AVAILABLE_REPLACEMENT_FIELDS = ["applicant_name", "purpose"]
+FIELDS_TO_CLEAN_UP = ["applicant_name", "purpose"]
 
 REPLACEMENT_FIELDS = {
     field: {
@@ -136,12 +136,10 @@ REPLACEMENT_FIELDS = {
         "items": REPLACEMENT_DEFINITION,
         "default": [],
     }
-    for field in _AVAILABLE_REPLACEMENT_FIELDS
+    for field in FIELDS_TO_CLEAN_UP
 }
 
-FINALIZER_FIELDS = {
-    field: FINALIZER_DEFINITION for field in _AVAILABLE_REPLACEMENT_FIELDS
-}
+FINALIZER_FIELDS = {field: FINALIZER_DEFINITION for field in FIELDS_TO_CLEAN_UP}
 
 CONFIG = {
     "type": "object",
@@ -163,7 +161,7 @@ CONFIG = {
         "finalizer": {
             "type": "object",
             "properties": FINALIZER_FIELDS,
-            "default": {field: {} for field in _AVAILABLE_REPLACEMENT_FIELDS},
+            "default": {field: {} for field in FIELDS_TO_CLEAN_UP},
         },
     },
     "additionalProperties": False,
