@@ -85,6 +85,64 @@ YNAB_CONFIG_SCHEMA = {
     "required": ["access_token", "budget_id"],
 }
 
+REPLACEMENT_DEFINITION = {
+    "oneOf": [
+        {
+            "type": "string",
+        },
+        {
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                },
+                "repl": {
+                    "type": "string",
+                    "default": "",
+                },
+                "casesensitive": {
+                    "type": "boolean",
+                    "default": False,
+                },
+            },
+            "required": ["pattern"],
+            "additionalProperties": False,
+        },
+    ]
+}
+
+FINALIZER_DEFINITION = {
+    "type": "object",
+    "properties": {
+        "capitalize": {
+            "type": "boolean",
+            "default": True,
+        },
+        "strip": {
+            "type": "boolean",
+            "default": True,
+        },
+    },
+    "default": {},
+    "additionalProperties": False,
+}
+
+
+_AVAILABLE_REPLACEMENT_FIELDS = ["applicant_name", "purpose"]
+
+REPLACEMENT_FIELDS = {
+    field: {
+        "type": "array",
+        "items": REPLACEMENT_DEFINITION,
+        "default": [],
+    }
+    for field in _AVAILABLE_REPLACEMENT_FIELDS
+}
+
+FINALIZER_FIELDS = {
+    field: FINALIZER_DEFINITION for field in _AVAILABLE_REPLACEMENT_FIELDS
+}
+
 CONFIG = {
     "type": "object",
     "properties": {
@@ -94,8 +152,21 @@ CONFIG = {
             "type": "array",
             "items": ACCOUNT_CONFIG_SCHEMA,
         },
+        "replacements": {
+            "type": "object",
+            "properties": REPLACEMENT_FIELDS,
+        },
+        "pre-replacements": {
+            "type": "object",
+            "properties": REPLACEMENT_FIELDS,
+        },
+        "finalizer": {
+            "type": "object",
+            "properties": FINALIZER_FIELDS,
+            "default": {field: {} for field in _AVAILABLE_REPLACEMENT_FIELDS},
+        },
     },
-    "additionalProperties": True,
+    "additionalProperties": False,
     "required": ["accounts", "ynab"],
 }
 

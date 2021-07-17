@@ -4,7 +4,7 @@ import click
 from logzero import logger
 
 
-re_wordsplits = re.compile(r"([^\s]+\s)")
+re_wordsplits = re.compile(r"([^\s\-]+(\s|$))")
 
 
 class FieldCleaner:
@@ -12,11 +12,13 @@ class FieldCleaner:
     pre_cleaners = None
     fields = set()
 
-    def __init__(self, pre_replacements, replacements, verbose=False):
+    def __init__(self, pre_replacements, replacements, finalizer, verbose=False):
 
         self.cleaners = {}
         self.pre_cleaners = {}
         self.verbose = verbose
+        self.finalizer = finalizer
+
         for field, contents in replacements.items():
             logger.info(f"Compiling replacements for {field}")
             self.cleaners[field] = self.compile(contents)
@@ -30,88 +32,85 @@ class FieldCleaner:
     @staticmethod
     def _replacer_instance(string, replacement=""):
         def replace(x):
-            if isinstance(x, str):
-                return x.replace(string, replacement)
-            return x
+            return x.replace(string, replacement)
 
         return replace
 
     @staticmethod
-    def _regex_sub_instance(pattern, replacement="", casesensitive=False):
-        if casesensitive:
-            regex = re.compile(pattern)
-        else:
-            regex = re.compile(pattern, flags=re.IGNORECASE)
+    def _regex_sub_instance(*, pattern, repl="", casesensitive=False):
+        regex = re.compile(
+            pattern,
+            flags=re.IGNORECASE if casesensitive else 0,
+        )
 
         def substitute(x):
-            if isinstance(x, str):
-                return regex.sub(replacement, x)
-            return x
+            return regex.sub(repl, x)
 
         return substitute
 
     @staticmethod
+    def compile_entry(entry):
+        if isinstance(entry, str):
+            return FieldCleaner._replacer_instance(entry)
+
+        if isinstance(entry, dict):
+            return FieldCleaner._regex_sub_instance(**entry)
+
+        raise ValueError(f"Invalid replacement definition: {entry!r}")
+
+    @staticmethod
     def compile(field):
-        cleaners = []
-        for entry in field:
-            if isinstance(entry, str):
-                cleaners.append(FieldCleaner._replacer_instance(entry))
-            elif isinstance(entry, dict):
-                subst = entry.get("repl", "")
-                if "string" in entry:
-                    cleaners.append(
-                        FieldCleaner._replacer_instance(entry["string"], subst)
-                    )
+        return [FieldCleaner.compile_entry(e) for e in field]
 
-                elif "pattern" in entry:
-                    casesensitive = entry.get("casesensitive", False)
-                    cleaners.append(
-                        FieldCleaner._regex_sub_instance(
-                            entry["pattern"], subst, casesensitive
-                        )
-                    )
-                else:
-                    raise ValueError(f"Missing keyword in definition: {entry}")
-            else:
-                raise ValueError(f"Replacement definition must be str or dict: {entry}")
-        return cleaners
-
-    def clean(self, data):
+    def iter_field_data(self, data):
         for field in self.fields:
-            if field not in data or data[field] is None:
+            if field not in data:
                 continue
-            previous = cleaned = data[field]
+
+            previous = data[field]
+            if previous is None or len(previous) == 0:
+                continue
 
             cleaners = self.cleaners.get(field, [])
             pre_cleaners = self.pre_cleaners.get(field, [])
+            finalizer = self.finalizer.get(field, [])
+
+            yield field, previous, cleaners, pre_cleaners, finalizer
+
+    @staticmethod
+    def _replace_capitalize(match):
+        return match.group(1).capitalize()
+
+    def clean(self, data):
+        for field, previous, cleaners, pre_cleaners, finalizer in self.iter_field_data(
+            data
+        ):
+            cleaned = previous
 
             for cleaner in pre_cleaners:
                 cleaned = cleaner(cleaned)
 
-            # When text is all uppercase, try to capitalize it more nicely
-            if cleaned.upper() == cleaned:
-                cleaned = "".join(
-                    s.lstrip().capitalize() for s in re_wordsplits.split(cleaned)
-                )
+            if finalizer["capitalize"]:
+                cleaned = re_wordsplits.sub(FieldCleaner._replace_capitalize, cleaned)
+
             for cleaner in cleaners:
                 cleaned = cleaner(cleaned)
 
-            cleaned = cleaned.strip()
-            if previous != cleaned:
-                if self.verbose:
-                    interdot = click.style("\u00B7", fg="blue")
-                    previous = previous.replace(
-                        " ", interdot + click.style("", fg="red", reset=False)
-                    )
-                    colored = cleaned.replace(
-                        " ", interdot + click.style("", fg="green", reset=False)
-                    )
-                    click.echo(
-                        f"{field:>16s}" + click.style(f" - '{previous}'", fg="red")
-                    )
-                    click.echo(
-                        f"{'=>':>16s}" + click.style(f" + '{colored}'", fg="green")
-                    )
+            if finalizer["strip"]:
+                cleaned = cleaned.strip()
+            data[field] = cleaned
 
-                data[field] = cleaned
+            self._echo_if_cleaned(field, previous, cleaned)
         return data
+
+    def _echo_if_cleaned(self, field, previous, cleaned):
+        if self.verbose and previous != cleaned:
+            interdot = click.style("\u00B7", fg="blue")
+            previous = previous.replace(
+                " ", interdot + click.style("", fg="red", reset=False)
+            )
+            colored = cleaned.replace(
+                " ", interdot + click.style("", fg="green", reset=False)
+            )
+            click.echo(f"{field:>16s}" + click.style(f" - '{previous}'", fg="red"))
+            click.echo(f"{'=>':>16s}" + click.style(f" + '{colored}'", fg="green"))

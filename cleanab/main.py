@@ -80,11 +80,11 @@ def main(dry_run, config, verbose):
     budget_id = config["ynab"]["budget_id"]
 
     accounts = [Account(**acc) for acc in config["accounts"]]
-
     logger.debug("Creating field cleaner instance")
     cleaner = FieldCleaner(
         config.get("pre-replacements", []),
         config.get("replacements", []),
+        config["finalizer"],
         verbose,
     )
 
@@ -106,9 +106,8 @@ def main(dry_run, config, verbose):
             )
             logger.info(f"Got {len(new_transactions)} new transactions")
             processed += new_transactions
-        except Exception as exc:
-            logger.error("Processing %s failed", account)
-            logger.error(str(exc))
+        except Exception:
+            logger.exception("Processing %s failed", account)
 
     if not dry_run and processed:
         result = api.create_transaction(
