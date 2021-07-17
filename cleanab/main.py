@@ -9,7 +9,7 @@ from cleanab.cleaner import FieldCleaner
 from cleanab.formatter import print_results
 from cleanab.holdings import process_holdings
 from cleanab.holdings import retrieve_holdings
-from cleanab.transactions import process_transactions
+from cleanab.transactions import process_all_transactions
 from cleanab.transactions import retrieve_transactions
 from cleanab.types import Account
 from cleanab.types import AccountType
@@ -66,7 +66,7 @@ def process_account(account, accounts_api, budget_id, earliest, cleaner):
             logger.warning("Could not retrieve existing transactions")
             existing_ids = []
 
-        yield from process_transactions(
+        yield from process_all_transactions(
             account,
             transactions,
             cleaner,

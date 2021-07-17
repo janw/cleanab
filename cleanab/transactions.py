@@ -11,49 +11,45 @@ def retrieve_transactions(account, fints, start_date, end_date):
 re_cc_purpose = re.compile(r"^(.+?)([A-Z]{3})\s{3,}([0-9,]+)(.*)$")
 
 
-def process_transactions(account, transactions, cleaner, skippable=None):
-    skippable = [] if not skippable else skippable
+def process_all_transactions(account, transactions, cleaner, skippable=None):
+    for transaction in transactions:
+        yield from process_transaction(account, transaction, cleaner)
 
-    for ta in transactions:
-        if "entry_date" in ta.data:
-            entry_date = ta.data["entry_date"]
-        else:
-            entry_date = ta.data["date"]
 
-        if entry_date > date.today():
-            continue
+def process_transaction(account, transaction, cleaner):
+    data = transaction.data
+    entry_date = data.get("entry_date") or data["date"]
+    if entry_date > date.today():
+        return
 
-        entry_date = entry_date.strftime("%Y-%m-%d")
-        amount = round(ta.data["amount"].amount * 1000)
-        applicant_name = ta.data.get("applicant_name", None) or ""
-        purpose = ta.data.get("purpose", None) or ""
-        uuid = md5(
-            (entry_date + applicant_name + purpose + str(amount)).encode("utf-8")
-        ).hexdigest()
+    entry_date = entry_date.strftime("%Y-%m-%d")
+    amount = round(data["amount"].amount * 1000)
+    applicant_name = data.get("applicant_name", None) or ""
+    purpose = data.get("purpose", None) or ""
+    uuid = md5(
+        (entry_date + applicant_name + purpose + str(amount)).encode("utf-8")
+    ).hexdigest()
 
-        # if uuid in skippable:
-        #     continue
+    local_data = data.copy()
+    if len(applicant_name) == 0 and len(purpose) > 0:
+        result = re_cc_purpose.search(purpose)
+        if result:
+            splits = result.groups()
+            local_data["applicant_name"] = splits[0]
+            local_data["purpose"] = " ".join(splits[1:])
 
-        local_data = ta.data.copy()
-        if len(applicant_name) == 0 and len(purpose) > 0:
-            result = re_cc_purpose.search(purpose)
-            if result:
-                splits = result.groups()
-                local_data["applicant_name"] = splits[0]
-                local_data["purpose"] = " ".join(splits[1:])
+    local_data = cleaner.clean(local_data)
+    purpose = local_data.get("purpose", "")
+    if purpose and len(purpose) > 200:
+        purpose = purpose[:200]
 
-        local_data = cleaner.clean(local_data)
-        purpose = local_data.get("purpose", "")
-        if purpose and len(purpose) > 200:
-            purpose = purpose[:200]
-
-        yield {
-            "account_id": account.ynab_id,
-            "date": entry_date,
-            "amount": amount,
-            "payee_name": local_data["applicant_name"],
-            "memo": purpose,
-            "import_id": uuid,
-            "cleared": "cleared" if account.default_cleared else "uncleared",
-            "approved": account.default_approved,
-        }
+    yield {
+        "account_id": account.ynab_id,
+        "date": entry_date,
+        "amount": amount,
+        "payee_name": local_data["applicant_name"],
+        "memo": purpose,
+        "import_id": uuid,
+        "cleared": "cleared" if account.default_cleared else "uncleared",
+        "approved": account.default_approved,
+    }
