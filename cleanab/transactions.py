@@ -54,6 +54,6 @@ def process_transactions(account, transactions, cleaner, skippable=None):
             "payee_name": local_data["applicant_name"],
             "memo": purpose,
             "import_id": uuid,
-            "cleared": account.default_cleared,
+            "cleared": "cleared" if account.default_cleared else "uncleared",
             "approved": account.default_approved,
         }

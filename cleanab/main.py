@@ -1,7 +1,6 @@
 from datetime import date
 from datetime import timedelta
 
-import yaml
 import ynab_api as ynab
 from fints.client import FinTS3PinTanClient
 from logzero import logger
@@ -75,9 +74,7 @@ def process_account(account, accounts_api, budget_id, earliest, cleaner):
         )
 
 
-def main(dry_run, configfile, verbose):
-    logger.debug("Loading config file")
-    config = yaml.safe_load(configfile)
+def main(dry_run, config, verbose):
     api = get_ynab_api(config)
     accounts_api = get_ynab_account_api(config)
     budget_id = config["ynab"]["budget_id"]
@@ -94,7 +91,7 @@ def main(dry_run, configfile, verbose):
     earliest = max(
         [
             TODAY - timedelta(days=config["timespan"]["maximum_days"]),
-            config["timespan"]["earliest_date"],
+            config["timespan"]["$earliest_date__native"],
         ]
     )
     logger.info(f"Checking back until {earliest}")
