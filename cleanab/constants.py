@@ -1,0 +1,2 @@
+NAME = "Cleanab"
+ENV_PREFIX = "CLEANAB"
