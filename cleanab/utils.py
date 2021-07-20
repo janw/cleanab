@@ -18,10 +18,10 @@ def simple_replace_instance(string, replacement=""):
     return replace
 
 
-def regex_sub_instance(*, pattern, repl="", casesensitive=False):
+def regex_sub_instance(*, pattern, repl="", caseinsensitive=True):
     regex = re.compile(
         pattern,
-        flags=re.IGNORECASE if casesensitive else 0,
+        flags=re.IGNORECASE if caseinsensitive else 0,
     )
 
     def substitute(x):

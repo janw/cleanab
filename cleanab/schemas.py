@@ -100,9 +100,9 @@ REPLACEMENT_DEFINITION = {
                     "type": "string",
                     "default": "",
                 },
-                "casesensitive": {
+                "caseinsensitive": {
                     "type": "boolean",
-                    "default": False,
+                    "default": True,
                 },
             },
             "required": ["pattern"],
