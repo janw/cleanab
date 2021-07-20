@@ -9,7 +9,7 @@ from cleanab.cleaner import FieldCleaner
 from cleanab.formatter import print_results
 from cleanab.holdings import process_holdings
 from cleanab.holdings import retrieve_holdings
-from cleanab.transactions import process_all_transactions
+from cleanab.transactions import process_account_transactions
 from cleanab.transactions import retrieve_transactions
 from cleanab.types import Account
 from cleanab.types import AccountType
@@ -31,7 +31,7 @@ def get_ynab_account_api(config):
     return ynab.AccountsApi(ynab.ApiClient(ynab_conf))
 
 
-def process_account(account, accounts_api, budget_id, earliest, cleaner):
+def process_account(account, accounts_api, budget_id, earliest):
 
     fints = FinTS3PinTanClient(
         account.fints_blz,
@@ -39,16 +39,10 @@ def process_account(account, accounts_api, budget_id, earliest, cleaner):
         account.fints_password,
         account.fints_endpoint,
     )
+    existing_ids = []
 
     if account.account_type == AccountType.HOLDING:
-        holdings = retrieve_holdings(account, fints)
-
-        yield from process_holdings(
-            account,
-            holdings,
-            accounts_api,
-            budget_id,
-        )
+        transactions = retrieve_holdings(account, fints)
     else:
         transactions = retrieve_transactions(
             account, fints, start_date=earliest, end_date=TODAY
@@ -64,17 +58,16 @@ def process_account(account, accounts_api, budget_id, earliest, cleaner):
             ]
         except Exception:
             logger.warning("Could not retrieve existing transactions")
-            existing_ids = []
 
-        yield from process_all_transactions(
-            account,
-            transactions,
-            cleaner,
-            skippable=existing_ids,
-        )
+    return transactions, existing_ids
 
 
-def main(dry_run, config, verbose):
+def main(dry_run, test, config, verbose):
+
+    if test:
+        dry_run = True
+        verbose = True
+
     api = get_ynab_api(config)
     accounts_api = get_ynab_account_api(config)
     budget_id = config["ynab"]["budget_id"]
@@ -82,7 +75,6 @@ def main(dry_run, config, verbose):
     accounts = [Account(**acc) for acc in config["accounts"]]
     logger.debug("Creating field cleaner instance")
     cleaner = FieldCleaner(
-        config.get("pre-replacements", []),
         config.get("replacements", []),
         config["finalizer"],
         verbose,
@@ -96,22 +88,51 @@ def main(dry_run, config, verbose):
     )
     logger.info(f"Checking back until {earliest}")
 
-    processed = []
+    all_processed_transactions = []
     for account in accounts:
         logger.info(f"Processing {account}")
 
         try:
-            new_transactions = list(
-                process_account(account, accounts_api, budget_id, earliest, cleaner)
-            )
-            logger.info(f"Got {len(new_transactions)} new transactions")
-            processed += new_transactions
+            if test and account.has_account_cache:
+                raw_transactions = account.read_account_cache()
+                existing_ids = []
+            else:
+                raw_transactions, existing_ids = process_account(
+                    account,
+                    accounts_api,
+                    budget_id,
+                    earliest,
+                )
+                if test:
+                    account.write_account_cache(raw_transactions)
+
+            if account.account_type == AccountType.HOLDING:
+                processed_transactions = list(
+                    process_holdings(
+                        account,
+                        raw_transactions,
+                        accounts_api,
+                        budget_id,
+                    )
+                )
+            else:
+                processed_transactions = list(
+                    process_account_transactions(
+                        account,
+                        raw_transactions,
+                        cleaner,
+                        skippable=existing_ids,
+                    )
+                )
+            logger.info(f"Got {len(processed_transactions)} new transactions")
+            all_processed_transactions += processed_transactions
         except Exception:
             logger.exception("Processing %s failed", account)
 
-    if not dry_run and processed:
+    if not dry_run and all_processed_transactions:
         result = api.create_transaction(
-            budget_id, ynab.SaveTransactionsWrapper(transactions=processed)
+            budget_id,
+            ynab.SaveTransactionsWrapper(transactions=all_processed_transactions),
         )
         if verbose:
             print_results(result)

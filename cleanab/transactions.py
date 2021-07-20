@@ -5,19 +5,23 @@ from hashlib import md5
 
 def retrieve_transactions(account, fints, start_date, end_date):
     acc = [acc for acc in fints.get_sepa_accounts() if acc.iban == account.iban][0]
-    return fints.get_transactions(acc, start_date=start_date, end_date=end_date)
+    return [
+        t.data
+        for t in fints.get_transactions(acc, start_date=start_date, end_date=end_date)
+    ]
 
 
 re_cc_purpose = re.compile(r"^(.+?)([A-Z]{3})\s{3,}([0-9,]+)(.*)$")
 
 
-def process_all_transactions(account, transactions, cleaner, skippable=None):
+def process_account_transactions(account, transactions, cleaner, skippable=None):
     for transaction in transactions:
         yield from process_transaction(account, transaction, cleaner)
 
 
 def process_transaction(account, transaction, cleaner):
-    data = transaction.data
+    data = transaction
+
     entry_date = data.get("entry_date") or data["date"]
     if entry_date > date.today():
         return

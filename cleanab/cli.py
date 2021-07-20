@@ -42,6 +42,17 @@ config_validator
     help="Only fetch and clean up the transactions. None will be added to YNAB.",
 )
 @click.option(
+    "-t",
+    "--test",
+    is_flag=True,
+    help=(
+        "Testing mode: Fetch transactions and clean them up. The raw transaction data"
+        " will be written to disk, so on subsequent --test runs the local copy of the"
+        " transaction data will be used. This avoids querying the bank APIs too often."
+        " No transaction will be added to YNAB. (implies --dry-run and --verbose)"
+    ),
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,

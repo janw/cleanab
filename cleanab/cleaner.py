@@ -22,6 +22,7 @@ class FieldCleaner:
         for field, contents in finalizing.items():
             self.finalizers[field] = self.compile_finalizer(contents)
 
+    @staticmethod
     def compile_finalizer(config):
         def finalizer(string):
             if config["capitalize"]:

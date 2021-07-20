@@ -1,6 +1,18 @@
+import os
 import re
+import sys
+from pathlib import Path
+
+from . import constants
 
 re_wordsplits = re.compile(r"([^\s\-]+(\s|$))")
+
+if sys.platform == "darwin":
+    CACHE_HOME = Path("~/Library/Caches").expanduser() / constants.NAME
+else:
+    XDG_CACHE_HOME = (
+        Path(os.getenv("XDG_CACHE_HOME", "~/.cache")).expanduser() / constants.NAME
+    )
 
 
 def _replace_capitalize(match):
