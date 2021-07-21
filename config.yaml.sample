@@ -1,26 +1,24 @@
 ---
 timespan:
-  earliest_date: 2019-06-01
+  earliest_date: "2019-06-01"
   maximum_days: 30
 
 ynab:
   access_token: ""
   budget_id: ""
   cash_account_id: ""
-  mark_cleared: true
 
 accounts:
-  - dumper: :fints
+  - friendly_name: This Bank Account
     iban:
     ynab_id: ""
     username: ""
     password:
     fints_blz: ""
     fints_endpoint: https://fints.ing-diba.de/fints/
-
-pre-replacements:
-  purpose:
-    - "This must go before further processing"
+    account_type: checking
+    default_cleared: true
+    default_approved: false
 
 replacements:
   applicant_name:
