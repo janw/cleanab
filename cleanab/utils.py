@@ -10,7 +10,7 @@ re_wordsplits = re.compile(r"([^\s\-]+(\s|$))")
 if sys.platform == "darwin":
     CACHE_HOME = Path("~/Library/Caches").expanduser() / constants.NAME
 else:
-    XDG_CACHE_HOME = (
+    CACHE_HOME = (
         Path(os.getenv("XDG_CACHE_HOME", "~/.cache")).expanduser() / constants.NAME
     )
 
