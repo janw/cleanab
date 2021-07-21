@@ -1,8 +1,5 @@
 name: ci
-on:
-  push:
-    branches:
-      - 'github-workflow'
+on: push
 jobs:
   build:
     name: docker-build
