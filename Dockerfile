@@ -18,3 +18,5 @@ RUN \
 COPY cleanab ./cleanab
 
 ENTRYPOINT [ "python", "-m", "cleanab" ]
+
+LABEL org.opencontainers.image.source https://github.com/janw/cleanab

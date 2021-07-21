@@ -1,0 +1,25 @@
+name: ci
+on:
+  push:
+    branches:
+      - 'github-workflow'
+jobs:
+  build:
+    name: docker-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - id: docker-tag
+        uses: yuya-takeyama/docker-tag-from-github-ref-action@v1
+
+      - uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.CR_PAT }}
+
+      - uses: docker/build-push-action@v2
+        with:
+          tags: ghcr.io/janw/cleanab:${{ steps.docker-tag.outputs.tag }}
+          push: true
