@@ -3,14 +3,6 @@ from datetime import date
 from hashlib import md5
 
 
-def retrieve_transactions(account, fints, start_date, end_date):
-    acc = [acc for acc in fints.get_sepa_accounts() if acc.iban == account.iban][0]
-    return [
-        t.data
-        for t in fints.get_transactions(acc, start_date=start_date, end_date=end_date)
-    ]
-
-
 re_cc_purpose = re.compile(r"^(.+?)([A-Z]{3})\s{3,}([0-9,]+)(.*)$")
 
 

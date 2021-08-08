@@ -1,109 +1,68 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from datetime import timedelta
+from itertools import chain
 
-import ynab_api as ynab
-from fints.client import FinTS3PinTanClient
 from logzero import logger
 
+from cleanab import ynab
 from cleanab.cleaner import FieldCleaner
+from cleanab.fints import process_account
 from cleanab.formatter import print_results
 from cleanab.holdings import process_holdings
-from cleanab.holdings import retrieve_holdings
 from cleanab.transactions import process_account_transactions
-from cleanab.transactions import retrieve_transactions
 from cleanab.types import Account
 from cleanab.types import AccountType
 
 TODAY = date.today()
 
 
-def get_ynab_api(config):
-    ynab_conf = ynab.Configuration()
-    ynab_conf.api_key["Authorization"] = config["ynab"]["access_token"]
-    ynab_conf.api_key_prefix["Authorization"] = "Bearer"
-    return ynab.TransactionsApi(ynab.ApiClient(ynab_conf))
+class Cleanab:
+    def __init__(self, *, config, dry_run=False, test=False, verbose=False):
+        self.config = config
+        self.dry_run = dry_run
+        self.test = test
+        self.verbose = verbose
 
+        if self.test:
+            self.dry_run = True
+            self.verbose = True
 
-def get_ynab_account_api(config):
-    ynab_conf = ynab.Configuration()
-    ynab_conf.api_key["Authorization"] = config["ynab"]["access_token"]
-    ynab_conf.api_key_prefix["Authorization"] = "Bearer"
-    return ynab.AccountsApi(ynab.ApiClient(ynab_conf))
+    def setup(self):
+        self._ynab_access_token = self.config["ynab"]["access_token"]
+        self.accounts_api = ynab.get_ynab_account_api(self._ynab_access_token)
+        self.budget_id = self.config["ynab"]["budget_id"]
 
-
-def process_account(account, accounts_api, budget_id, earliest):
-
-    fints = FinTS3PinTanClient(
-        account.fints_blz,
-        account.fints_username,
-        account.fints_password,
-        account.fints_endpoint,
-    )
-    existing_ids = []
-
-    if account.account_type == AccountType.HOLDING:
-        transactions = retrieve_holdings(account, fints)
-    else:
-        transactions = retrieve_transactions(
-            account, fints, start_date=earliest, end_date=TODAY
+        self.accounts = [Account(**acc) for acc in self.config["accounts"]]
+        logger.debug("Creating field cleaner instance")
+        self.cleaner = FieldCleaner(
+            self.config.get("replacements", []),
+            self.config["finalizer"],
+            self.verbose,
         )
-        try:
-            existing_transactions = accounts_api.get_transactions(
-                budget_id, since_date=earliest
-            )
-            existing_ids = [
-                t.import_id
-                for t in existing_transactions.data.transactions
-                if t.import_id
+
+        self.earliest = max(
+            [
+                TODAY - timedelta(days=self.config["timespan"]["maximum_days"]),
+                self.config["timespan"]["$earliest_date__native"],
             ]
-        except Exception:
-            logger.warning("Could not retrieve existing transactions")
+        )
+        logger.info(f"Checking back until {self.earliest}")
 
-    return transactions, existing_ids
-
-
-def main(dry_run, test, config, verbose):
-
-    if test:
-        dry_run = True
-        verbose = True
-
-    api = get_ynab_api(config)
-    accounts_api = get_ynab_account_api(config)
-    budget_id = config["ynab"]["budget_id"]
-
-    accounts = [Account(**acc) for acc in config["accounts"]]
-    logger.debug("Creating field cleaner instance")
-    cleaner = FieldCleaner(
-        config.get("replacements", []),
-        config["finalizer"],
-        verbose,
-    )
-
-    earliest = max(
-        [
-            TODAY - timedelta(days=config["timespan"]["maximum_days"]),
-            config["timespan"]["$earliest_date__native"],
-        ]
-    )
-    logger.info(f"Checking back until {earliest}")
-
-    all_processed_transactions = []
-    for account in accounts:
+    def processor(self, account):
         logger.info(f"Processing {account}")
 
         try:
-            if test and account.has_account_cache:
+            if self.test and account.has_account_cache:
                 raw_transactions = account.read_account_cache()
                 existing_ids = []
             else:
                 raw_transactions, existing_ids = process_account(
                     account,
-                    accounts_api,
-                    budget_id,
-                    earliest,
+                    earliest=self.earliest,
+                    latest=TODAY,
                 )
-                if test:
+                if self.test:
                     account.write_account_cache(raw_transactions)
 
             if account.account_type == AccountType.HOLDING:
@@ -111,8 +70,8 @@ def main(dry_run, test, config, verbose):
                     process_holdings(
                         account,
                         raw_transactions,
-                        accounts_api,
-                        budget_id,
+                        self.accounts_api,
+                        self.budget_id,
                     )
                 )
             else:
@@ -120,19 +79,38 @@ def main(dry_run, test, config, verbose):
                     process_account_transactions(
                         account,
                         raw_transactions,
-                        cleaner,
+                        self.cleaner,
                         skippable=existing_ids,
                     )
                 )
             logger.info(f"Got {len(processed_transactions)} new transactions")
-            all_processed_transactions += processed_transactions
+            return processed_transactions
         except Exception:
             logger.exception("Processing %s failed", account)
 
-    if not dry_run and all_processed_transactions:
-        result = api.create_transaction(
-            budget_id,
-            ynab.SaveTransactionsWrapper(transactions=all_processed_transactions),
+            return []
+
+    def run(self):
+        num_workers = self.config["cleanab"]["concurrency"]
+        logger.info(f"Parallelizing with {num_workers} workers")
+
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            tasks = [
+                executor.submit(self.processor, account) for account in self.accounts
+            ]
+        processed_transactions = list(chain.from_iterable((t.result() for t in tasks)))
+
+        if not processed_transactions:
+            logger.warning("No transactions found")
+            return
+
+        if self.dry_run:
+            logger.info("Dry-run, not creating YNAB transactions")
+            return
+
+        logger.info("Creating YNAB transactions")
+        result = ynab.create_transactions(
+            self._ynab_access_token, self.budget_id, processed_transactions
         )
-        if verbose:
-            print_results(result)
+
+        print_results(result, verbose=self.verbose)

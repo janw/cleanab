@@ -9,7 +9,7 @@ from .schemas import config_validator
 logzero.__name__ = "fints"
 logzero.setup_logger(level=logging.ERROR)
 
-from cleanab.main import main  # noqa: F401, E402
+from cleanab.main import Cleanab  # noqa: F401, E402
 
 
 class ConfigFile(click.File):
@@ -69,4 +69,6 @@ config_validator
     metavar="configfile",
 )
 def cli(**kwargs):
-    main(**kwargs)
+    c = Cleanab(**kwargs)
+    c.setup()
+    c.run()

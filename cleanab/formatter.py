@@ -1,11 +1,17 @@
 from logzero import logger
 
 
-def print_results(results):
-    logger.info("Done.")
+def print_results(results, verbose=False):
     bulk = results.data
-    for entry in getattr(bulk, "duplicate_import_ids", []):
-        logger.info(f"Duplicate transactions: {entry}")
+    duplicates = getattr(bulk, "duplicate_import_ids", [])
+    new = getattr(bulk, "transaction_ids", [])
 
-    for entry in getattr(bulk, "transaction_ids", []):
-        logger.info(f"New transactions: {entry}")
+    logger.info(f"Created {len(new)} new transactions")
+    if verbose:
+        for entry in new:
+            logger.info(f"New: {entry}")
+
+    logger.info(f"Saw {len(duplicates)} duplicates")
+    if verbose:
+        for entry in duplicates:
+            logger.info(f"Duplicate: {entry}")

@@ -2,11 +2,6 @@ from datetime import date
 from hashlib import md5
 
 
-def retrieve_holdings(account, fints):
-    acc = [acc for acc in fints.get_sepa_accounts() if acc.iban == account.iban][0]
-    return [{"total_value": h.total_value} for h in fints.get_holdings(acc)]
-
-
 def process_holdings(account, holdings, api, budget_id):
     ynab_acc = api.get_account_by_id(account_id=account.ynab_id, budget_id=budget_id)
 

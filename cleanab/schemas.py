@@ -127,6 +127,17 @@ FINALIZER_DEFINITION = {
     "additionalProperties": False,
 }
 
+CLEANAB_CONFIG_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1,
+        }
+    },
+}
+
 
 FIELDS_TO_CLEAN_UP = ["applicant_name", "purpose"]
 
@@ -144,6 +155,7 @@ FINALIZER_FIELDS = {field: FINALIZER_DEFINITION for field in FIELDS_TO_CLEAN_UP}
 CONFIG = {
     "type": "object",
     "properties": {
+        "cleanab": CLEANAB_CONFIG_SCHEMA,
         "timespan": TIMESPAN_CONFIG_SCHEMA,
         "ynab": YNAB_CONFIG_SCHEMA,
         "accounts": {
