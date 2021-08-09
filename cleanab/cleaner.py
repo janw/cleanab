@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 import click
 from logzero import logger
 
@@ -47,7 +49,13 @@ class FieldCleaner:
 
     @staticmethod
     def compile_cleaners(entries):
-        return [FieldCleaner.compile_single_cleaner(e) for e in entries]
+        cleaners = []
+        for entry in entries:
+            if isinstance(entry, list):
+                cleaners += FieldCleaner.compile_cleaners(entry)
+            else:
+                cleaners.append(FieldCleaner.compile_single_cleaner(entry))
+        return cleaners
 
     def iter_valid_data_fields(self, data):
         for field in self.fields:
@@ -60,29 +68,30 @@ class FieldCleaner:
 
             yield field, value
 
+    @lru_cache(maxsize=256)
+    def clean_field(self, field, cleaned):
+        for cleaner in self.cleaners.get(field, []):
+            cleaned = cleaner(cleaned)
+
+        if field in self.finalizers:
+            cleaned = self.finalizers[field](cleaned)
+
+        return cleaned
+
     def clean(self, data):
         for field, previous in self.iter_valid_data_fields(data):
-            cleaned = previous
-
-            for cleaner in self.cleaners.get(field, []):
-                cleaned = cleaner(cleaned)
-
-            if field in self.finalizers:
-                cleaned = self.finalizers[field](cleaned)
-
+            cleaned = self.clean_field(field, previous)
             data[field] = cleaned
 
             self._echo_if_cleaned(field, previous, cleaned)
         return data
 
     def _echo_if_cleaned(self, field, previous, cleaned):
-        if self.verbose and previous != cleaned:
-            interdot = click.style("\u00B7", fg="blue")
-            previous = previous.replace(
-                " ", interdot + click.style("", fg="red", reset=False)
-            )
-            colored = cleaned.replace(
-                " ", interdot + click.style("", fg="green", reset=False)
-            )
-            click.echo(f"{field:>16s}" + click.style(f" - '{previous}'", fg="red"))
-            click.echo(f"{'=>':>16s}" + click.style(f" + '{colored}'", fg="green"))
+        if not self.verbose:
+            return
+
+        color_in, color_out = (
+            ("red", "green") if previous != cleaned else ("blue", "blue")
+        )
+        click.echo(f"{field:>16s}" + click.style(f" - '{previous}'", fg=color_in))
+        click.echo(f"{'=>':>16s}" + click.style(f" + '{cleaned}'", fg=color_out))

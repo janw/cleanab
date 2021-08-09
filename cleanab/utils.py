@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+from functools import lru_cache
 from pathlib import Path
 
 from . import constants
@@ -23,6 +24,7 @@ def capitalize_string(string):
     return re_wordsplits.sub(_replace_capitalize, string)
 
 
+@lru_cache()
 def simple_replace_instance(string, replacement=""):
     def replace(x):
         return x.replace(string, replacement)
@@ -30,6 +32,7 @@ def simple_replace_instance(string, replacement=""):
     return replace
 
 
+@lru_cache()
 def regex_sub_instance(*, pattern, repl="", caseinsensitive=True):
     regex = re.compile(
         pattern,

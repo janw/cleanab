@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from dateutil.parser import parse as dateparse
 from jsonschema import draft7_format_checker
 from jsonschema import Draft7Validator
@@ -85,7 +87,7 @@ YNAB_CONFIG_SCHEMA = {
     "required": ["access_token", "budget_id"],
 }
 
-REPLACEMENT_DEFINITION = {
+_REPLACEMENT_SUBDEFINITION = {
     "oneOf": [
         {
             "type": "string",
@@ -110,6 +112,16 @@ REPLACEMENT_DEFINITION = {
         },
     ]
 }
+
+REPLACEMENT_DEFINITION = deepcopy(_REPLACEMENT_SUBDEFINITION)
+REPLACEMENT_DEFINITION["oneOf"].append(
+    {
+        "type": "array",
+        "items": _REPLACEMENT_SUBDEFINITION,
+        "default": [],
+    }
+)
+
 
 FINALIZER_DEFINITION = {
     "type": "object",
@@ -176,6 +188,7 @@ CONFIG = {
             "default": {field: {} for field in FIELDS_TO_CLEAN_UP},
         },
     },
+    "patternProperties": {"x-.*": {}},
     "additionalProperties": False,
     "required": ["accounts", "ynab"],
 }
@@ -186,7 +199,7 @@ def extend_with_default(validator_class):
 
     def set_defaults(validator, properties, instance, schema):
         for property, subschema in properties.items():
-            if "default" in subschema:
+            if "default" in subschema and isinstance(instance, dict):
                 instance.setdefault(property, subschema["default"])
 
             if "format" not in subschema:

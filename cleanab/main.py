@@ -62,8 +62,7 @@ class Cleanab:
                     earliest=self.earliest,
                     latest=TODAY,
                 )
-                if self.test:
-                    account.write_account_cache(raw_transactions)
+                account.write_account_cache(raw_transactions)
 
             if account.account_type == AccountType.HOLDING:
                 processed_transactions = list(
