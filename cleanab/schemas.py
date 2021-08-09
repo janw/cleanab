@@ -8,6 +8,8 @@ from jsonschema import validators
 from .types import AccountType
 from .validators import validate_custom_formats
 
+FIELDS_TO_CLEAN_UP = ["applicant_name", "purpose"]
+
 ACCOUNT_CONFIG_SCHEMA = {
     "type": "object",
     "properties": {
@@ -87,6 +89,8 @@ YNAB_CONFIG_SCHEMA = {
     "required": ["access_token", "budget_id"],
 }
 
+_TRANSFORM_FIELD_SCHEMA = {"type": "string"}
+
 _REPLACEMENT_SUBDEFINITION = {
     "oneOf": [
         {
@@ -105,6 +109,10 @@ _REPLACEMENT_SUBDEFINITION = {
                 "caseinsensitive": {
                     "type": "boolean",
                     "default": True,
+                },
+                **{
+                    f"transform_{field}": _TRANSFORM_FIELD_SCHEMA
+                    for field in FIELDS_TO_CLEAN_UP
                 },
             },
             "required": ["pattern"],
@@ -150,8 +158,6 @@ CLEANAB_CONFIG_SCHEMA = {
     },
 }
 
-
-FIELDS_TO_CLEAN_UP = ["applicant_name", "purpose"]
 
 REPLACEMENT_FIELDS = {
     field: {

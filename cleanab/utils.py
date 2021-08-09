@@ -5,6 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from . import constants
+from . import schemas
 
 re_wordsplits = re.compile(r"([^\s\-]+(\s|$))")
 
@@ -27,19 +28,32 @@ def capitalize_string(string):
 @lru_cache()
 def simple_replace_instance(string, replacement=""):
     def replace(x):
-        return x.replace(string, replacement)
+        return x.replace(string, replacement), {}
 
     return replace
 
 
 @lru_cache()
-def regex_sub_instance(*, pattern, repl="", caseinsensitive=True):
+def regex_sub_instance(*, pattern, repl="", caseinsensitive=True, **kwargs):
     regex = re.compile(
         pattern,
         flags=re.IGNORECASE if caseinsensitive else 0,
     )
+    transformers = {
+        field: kwargs[f"transform_{field}"]
+        for field in schemas.FIELDS_TO_CLEAN_UP
+        if f"transform_{field}" in kwargs
+    }
 
     def substitute(x):
-        return regex.sub(repl, x)
+        transformed = {}
+        for field, template in transformers.items():
+            match = regex.match(x)
+            if not match:
+                continue
+
+            transformed[field] = match.expand(template)
+
+        return regex.sub(repl, x), transformed
 
     return substitute

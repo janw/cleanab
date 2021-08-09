@@ -1,3 +1,4 @@
+import re
 from functools import lru_cache
 
 from logzero import logger
@@ -68,17 +69,28 @@ class FieldCleaner:
 
     @lru_cache(maxsize=256)
     def clean_field(self, field, cleaned):
+        transformations = {}
         for cleaner in self.cleaners.get(field, []):
-            cleaned = cleaner(cleaned)
+            cleaned, local_transformations = cleaner(cleaned)
+            transformations.update(local_transformations)
 
-        if field in self.finalizers:
-            cleaned = self.finalizers[field](cleaned)
-
-        return cleaned
+        return cleaned, transformations
 
     def clean(self, data):
-        for field, previous in self.iter_valid_data_fields(data):
-            cleaned = self.clean_field(field, previous)
-            data[field] = cleaned
+        transformations = {}
+        try:
+            for field, previous in self.iter_valid_data_fields(data):
+                cleaned, local_transformations = self.clean_field(field, previous)
+                transformations.update(local_transformations)
+                data[field] = cleaned
+
+            for field, transformation in transformations.items():
+                data[field] = transformation
+
+            for field, previous in self.iter_valid_data_fields(data):
+                if field in self.finalizers:
+                    data[field] = self.finalizers[field](previous)
+        except re.error as exc:
+            raise ValueError(f"Exception for pattern {exc.pattern}") from exc
 
         return data
