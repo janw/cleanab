@@ -38,7 +38,6 @@ class Cleanab:
         self.cleaner = FieldCleaner(
             self.config.get("replacements", []),
             self.config["finalizer"],
-            self.verbose,
         )
 
         self.earliest = max(

@@ -1,6 +1,5 @@
 from functools import lru_cache
 
-import click
 from logzero import logger
 
 from . import utils
@@ -12,10 +11,9 @@ class FieldCleaner:
     finalizers = None
     fields = FIELDS_TO_CLEAN_UP
 
-    def __init__(self, replacements, finalizing, verbose=False):
+    def __init__(self, replacements, finalizing):
         self.cleaners = {}
         self.finalizers = {}
-        self.verbose = verbose
 
         for field, contents in replacements.items():
             logger.info(f"Compiling replacements for {field}")
@@ -83,15 +81,4 @@ class FieldCleaner:
             cleaned = self.clean_field(field, previous)
             data[field] = cleaned
 
-            self._echo_if_cleaned(field, previous, cleaned)
         return data
-
-    def _echo_if_cleaned(self, field, previous, cleaned):
-        if not self.verbose:
-            return
-
-        color_in, color_out = (
-            ("red", "green") if previous != cleaned else ("blue", "blue")
-        )
-        click.echo(f"{field:>16s}" + click.style(f" - '{previous}'", fg=color_in))
-        click.echo(f"{'=>':>16s}" + click.style(f" + '{cleaned}'", fg=color_out))

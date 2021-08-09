@@ -2,6 +2,8 @@ import re
 from datetime import date
 from hashlib import md5
 
+from logzero import logger
+
 
 re_cc_purpose = re.compile(r"^(.+?)([A-Z]{3})\s{3,}([0-9,]+)(.*)$")
 
@@ -35,6 +37,9 @@ def process_transaction(account, transaction, cleaner):
             local_data["purpose"] = " ".join(splits[1:])
 
     local_data = cleaner.clean(local_data)
+
+    echo_if_changed(data, local_data, cleaner=cleaner, uuid=uuid)
+
     purpose = local_data.get("purpose", "")
     if purpose and len(purpose) > 200:
         purpose = purpose[:200]
@@ -49,3 +54,22 @@ def process_transaction(account, transaction, cleaner):
         "cleared": "cleared" if account.default_cleared else "uncleared",
         "approved": account.default_approved,
     }
+
+
+def echo_if_changed(original_data, data, *, cleaner, uuid):
+    logger.debug("---")
+    logger.debug("Transaction %s", uuid)
+
+    for field in cleaner.fields:
+        previous = original_data.get(field, "") or ""
+        cleaned = data.get(field, "") or ""
+
+        log = logger.info
+        prefix_in = prefix_out = "  "
+        if previous != cleaned:
+            log = logger.warning
+            prefix_in = "--"
+            prefix_out = "++"
+
+        log("%16s %s %s", field, prefix_in, previous)
+        log("%16s %s %s", field, prefix_out, cleaned)
