@@ -14,6 +14,10 @@ def process_holdings(account, holdings, api, budget_id, min_delta=0):
     if amount == 0 or amount < min_delta * 1000:
         return None
 
+    balance_in = balance_holdings / 1000
+    balance_out = balance_ynab / 1000
+    amount_adj = amount / 1000
+
     uuid = md5(
         (entry_date + "Value Adjustment" + "" + str(amount)).encode("utf-8")
     ).hexdigest()
@@ -23,6 +27,10 @@ def process_holdings(account, holdings, api, budget_id, min_delta=0):
         "date": entry_date,
         "amount": amount,
         "payee_name": "Value Adjustment",
+        "memo": (
+            "Adjusting account balance: "
+            f"{balance_in:.2f} - {amount_adj:.2f} = {balance_out:.2f}"
+        ),
         "import_id": uuid,
         "cleared": "cleared" if account.default_cleared else "uncleared",
         "approved": account.default_approved,
