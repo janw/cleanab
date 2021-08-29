@@ -2,7 +2,7 @@ from datetime import date
 from hashlib import md5
 
 
-def process_holdings(account, holdings, api, budget_id):
+def process_holdings(account, holdings, api, budget_id, min_delta=0):
     ynab_acc = api.get_account_by_id(account_id=account.ynab_id, budget_id=budget_id)
 
     entry_date = date.today()
@@ -11,7 +11,7 @@ def process_holdings(account, holdings, api, budget_id):
     balance_ynab = ynab_acc.data.account.balance
     amount = balance_holdings - balance_ynab
 
-    if amount == 0:
+    if amount == 0 or amount < min_delta * 1000:
         return None
 
     uuid = md5(

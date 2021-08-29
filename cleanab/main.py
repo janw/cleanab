@@ -70,6 +70,7 @@ class Cleanab:
                         raw_transactions,
                         self.accounts_api,
                         self.budget_id,
+                        min_delta=self.config["cleanab"]["minimum_holdings_delta"],
                     )
                 )
             else:

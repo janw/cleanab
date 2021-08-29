@@ -154,7 +154,12 @@ CLEANAB_CONFIG_SCHEMA = {
             "type": "integer",
             "minimum": 1,
             "default": 1,
-        }
+        },
+        "minimum_holdings_delta": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 1,
+        },
     },
 }
 
