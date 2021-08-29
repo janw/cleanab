@@ -1,4 +1,3 @@
-from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from datetime import timedelta
 from itertools import chain
@@ -93,11 +92,9 @@ class Cleanab:
         num_workers = self.config["cleanab"]["concurrency"]
         logger.info(f"Parallelizing with {num_workers} workers")
 
-        with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            tasks = [
-                executor.submit(self.processor, account) for account in self.accounts
-            ]
-        processed_transactions = list(chain.from_iterable((t.result() for t in tasks)))
+        processed_transactions = list(
+            chain.from_iterable(self.processor(account) for account in self.accounts)
+        )
 
         if not processed_transactions:
             logger.warning("No transactions found")

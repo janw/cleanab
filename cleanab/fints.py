@@ -1,19 +1,15 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from multiprocessing import Lock
 
 from fints.client import FinTS3PinTanClient
+from logzero import logger
 
 from cleanab.types import AccountType
 
 
 lock = Lock()
-
-
-def get_desired_sepa_account(account, fints: FinTS3PinTanClient):
-    with lock:
-        sepa_accounts = fints.get_sepa_accounts()
-    return [acc for acc in sepa_accounts if acc.iban == account.iban][0]
 
 
 def retrieve_transactions(
@@ -32,16 +28,25 @@ def retrieve_holdings(sepa_account, fints: FinTS3PinTanClient):
     return [{"total_value": h.total_value} for h in holdings]
 
 
+@lru_cache(maxsize=8)
+def get_fints_client(blz, username, password, endpoint):
+    logger.info("Retrieving SEPA accounts for %s from %s", username, endpoint)
+    fints = FinTS3PinTanClient(blz, username, password, endpoint)
+    with lock:
+        sepa_accounts = fints.get_sepa_accounts()
+
+    return fints, sepa_accounts
+
+
 def process_account(account, earliest, latest):
-    fints = FinTS3PinTanClient(
+    fints, sepa_accounts = get_fints_client(
         account.fints_blz,
         account.fints_username,
         account.fints_password,
         account.fints_endpoint,
     )
+    sepa_account = [acc for acc in sepa_accounts if acc.iban == account.iban][0]
     existing_ids = []
-
-    sepa_account = get_desired_sepa_account(account, fints)
 
     if account.account_type == AccountType.HOLDING:
         transactions = retrieve_holdings(sepa_account, fints)
