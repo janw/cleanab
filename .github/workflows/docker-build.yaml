@@ -22,8 +22,7 @@ jobs:
 
       - name: Get image name from lowercased repo name
         run: |
-          export IMAGE_NAME="${GITHUB_REPOSITORY,,}"
-          echo "${IMAGE_NAME/\/docker-/\/}" | tee -a ${GITHUB_ENV}
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" | tee -a ${GITHUB_ENV}
 
       - name: Build image
         uses: docker/build-push-action@v2
