@@ -4,7 +4,7 @@ import click
 import logzero
 import yaml
 
-from .schemas import config_validator
+from .models.config import Config
 
 logzero.__name__ = "fints"
 logzero.setup_logger(level=logging.ERROR)
@@ -14,24 +14,9 @@ from cleanab.main import Cleanab  # noqa: F401, E402
 
 class ConfigFile(click.File):
     def convert(self, value, param, ctx):
-        filename = value
         value = super().convert(value, param, ctx)
-
         value = yaml.safe_load(value)
-        had_errors = False
-        for err in config_validator.iter_errors(value):
-            if not had_errors:
-                click.echo(f"There are issues with your config at {filename}:")
-                had_errors = True
-            path = " -> ".join((str(p) for p in err.path))
-            click.echo(f"\nAt $config -> {path}:\n{err.message}")
-
-        if had_errors:
-            raise click.exceptions.Exit(1)
-        return value
-
-
-config_validator
+        return Config.parse_obj(value)
 
 
 @click.command()
@@ -39,7 +24,10 @@ config_validator
     "-n",
     "--dry-run",
     is_flag=True,
-    help="Only fetch and clean up the transactions. None will be added to YNAB.",
+    help=(
+        "Only fetch and clean up the transactions. None will be added in your budgeting"
+        " app."
+    ),
 )
 @click.option(
     "-t",
@@ -49,7 +37,8 @@ config_validator
         "Testing mode: Fetch transactions and clean them up. The raw transaction data"
         " will be written to disk, so on subsequent --test runs the local copy of the"
         " transaction data will be used. This avoids querying the bank APIs too often."
-        " No transaction will be added to YNAB. (implies --dry-run and --verbose)"
+        " No transaction will be added to in your budgeting app. (implies --dry-run and"
+        " --verbose)"
     ),
 )
 @click.option(

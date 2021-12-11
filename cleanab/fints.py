@@ -6,8 +6,7 @@ from multiprocessing import Lock
 from fints.client import FinTS3PinTanClient
 from logzero import logger
 
-from cleanab.types import AccountType
-
+from .models.enums import AccountType
 
 lock = Lock()
 
@@ -38,7 +37,7 @@ def get_fints_client(blz, username, password, endpoint):
     return fints, sepa_accounts
 
 
-def process_account(account, earliest, latest):
+def process_fints_account(account, earliest, latest):
     fints, sepa_accounts = get_fints_client(
         account.fints_blz,
         account.fints_username,
@@ -46,7 +45,6 @@ def process_account(account, earliest, latest):
         account.fints_endpoint,
     )
     sepa_account = [acc for acc in sepa_accounts if acc.iban == account.iban][0]
-    existing_ids = []
 
     if account.account_type == AccountType.HOLDING:
         transactions = retrieve_holdings(sepa_account, fints)
@@ -55,4 +53,4 @@ def process_account(account, earliest, latest):
             sepa_account, fints, start_date=earliest, end_date=latest
         )
 
-    return transactions, existing_ids
+    return transactions

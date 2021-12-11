@@ -4,7 +4,8 @@ from functools import lru_cache
 from logzero import logger
 
 from . import utils
-from .schemas import FIELDS_TO_CLEAN_UP
+from .constants import FIELDS_TO_CLEAN_UP
+from .models.cleaner import ReplacementDefinition
 
 
 class FieldCleaner:
@@ -16,20 +17,20 @@ class FieldCleaner:
         self.cleaners = {}
         self.finalizers = {}
 
-        for field, contents in replacements.items():
+        for field, contents in replacements:
             logger.info(f"Compiling replacements for {field}")
             self.cleaners[field] = self.compile_cleaners(contents)
 
-        for field, contents in finalizing.items():
+        for field, contents in finalizing:
             self.finalizers[field] = self.compile_finalizer(contents)
 
     @staticmethod
     def compile_finalizer(config):
         def finalizer(string):
-            if config["capitalize"]:
+            if config.capitalize:
                 string = utils.capitalize_string(string)
 
-            if config["strip"]:
+            if config.strip:
                 string = string.strip()
 
             return string
@@ -41,8 +42,8 @@ class FieldCleaner:
         if isinstance(entry, str):
             return utils.simple_replace_instance(entry)
 
-        if isinstance(entry, dict):
-            return utils.regex_sub_instance(**entry)
+        if isinstance(entry, ReplacementDefinition):
+            return utils.regex_sub_instance(entry)
 
         raise ValueError(f"Invalid replacement definition: {entry!r}")
 

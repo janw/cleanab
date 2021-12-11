@@ -4,8 +4,9 @@ import sys
 from functools import lru_cache
 from pathlib import Path
 
+from cleanab.models.cleaner import ReplacementDefinition
+
 from . import constants
-from . import schemas
 
 re_wordsplits = re.compile(r"([^\s\-]+(\s|$))")
 
@@ -34,26 +35,21 @@ def simple_replace_instance(string, replacement=""):
 
 
 @lru_cache()
-def regex_sub_instance(*, pattern, repl="", caseinsensitive=True, **kwargs):
+def regex_sub_instance(entry: ReplacementDefinition):
     regex = re.compile(
-        pattern,
-        flags=re.IGNORECASE if caseinsensitive else 0,
+        entry.pattern,
+        flags=re.IGNORECASE if entry.caseinsensitive else 0,
     )
-    transformers = {
-        field: kwargs[f"transform_{field}"]
-        for field in schemas.FIELDS_TO_CLEAN_UP
-        if f"transform_{field}" in kwargs
-    }
 
     def substitute(x):
         transformed = {}
-        for field, template in transformers.items():
+        for field, template in entry.transform.items():
             match = regex.match(x)
             if not match:
                 continue
 
             transformed[field] = match.expand(template)
 
-        return regex.sub(repl, x), transformed
+        return regex.sub(entry.repl, x), transformed
 
     return substitute

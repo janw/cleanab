@@ -3,7 +3,7 @@ from hashlib import md5
 
 
 def process_holdings(account, holdings, api, budget_id, min_delta=0):
-    ynab_acc = api.get_account_by_id(account_id=account.ynab_id, budget_id=budget_id)
+    ynab_acc = api.get_account_by_id(account_id=account.per_app_id, budget_id=budget_id)
 
     entry_date = date.today()
     entry_date = entry_date.strftime("%Y-%m-%d")
@@ -23,7 +23,7 @@ def process_holdings(account, holdings, api, budget_id, min_delta=0):
     ).hexdigest()
 
     yield {
-        "account_id": account.ynab_id,
+        "account_id": account.per_app_id,
         "date": entry_date,
         "amount": amount,
         "payee_name": "Value Adjustment",

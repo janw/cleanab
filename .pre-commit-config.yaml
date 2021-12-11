@@ -10,11 +10,10 @@ repos:
     hooks:
       - id: flake8
         additional_dependencies: ["flake8-bugbear"]
-  - repo: https://github.com/asottile/reorder_python_imports
-    rev: v1.5.0
+  - repo: https://github.com/pycqa/isort
+    rev: "5.10.1"
     hooks:
-      - id: reorder-python-imports
-        args: ["--py37-plus"]
+      - id: isort
   - repo: https://github.com/python/black
     rev: "21.8b0"
     hooks:
