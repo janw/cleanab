@@ -14,6 +14,7 @@ def process_transaction(transaction, cleaner):
 
     entry_date = data.get("entry_date") or data["date"]
     if entry_date > date.today():
+        logger.info(f"Skipping future transaction from {entry_date} ")
         return
 
     amount = round(data["amount"].amount * 1000)

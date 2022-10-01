@@ -116,8 +116,13 @@ class Cleanab:
 
     def process_account_transactions(self, transactions: list, account: AccountConfig):
         for transaction in transactions:
-            if transaction:
-                yield self.app_connection.augment_transaction(
-                    process_transaction(transaction, self.cleaner),
-                    account,
-                )
+            if not transaction:
+                continue
+
+            processed_transaction = process_transaction(transaction, self.cleaner)
+            if not processed_transaction:
+                continue
+
+            yield self.app_connection.augment_transaction(
+                processed_transaction, account
+            )
