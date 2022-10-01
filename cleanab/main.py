@@ -104,6 +104,11 @@ class Cleanab:
 
         if self.dry_run:
             logger.info("Dry-run, not creating transactions")
+            if intermediary := self.app_connection.create_intermediary(
+                processed_transactions
+            ):
+                logger.debug(f"Intermediary:\n\n{intermediary}\n\n")
+
             return
 
         logger.info(f"Creating transactions in {self.app_connection}")

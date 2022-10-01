@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from importlib import import_module
 from typing import List, Tuple
 
@@ -10,6 +10,10 @@ class BaseApp(ABC):
     def get_account_balance(self):
         pass
 
+    def create_intermediary(self):
+        pass
+
+    @abstractmethod
     def create_transactions(self, transactions) -> Tuple[List, List]:
         return [], []
 
