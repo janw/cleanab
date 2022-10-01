@@ -37,14 +37,18 @@ def get_fints_client(blz, username, password, endpoint):
     return fints, sepa_accounts
 
 
-def process_fints_account(account, earliest, latest):
+def process_fints_account(account, earliest, latest) -> list:
     fints, sepa_accounts = get_fints_client(
         account.fints_blz,
         account.fints_username,
         account.fints_password,
         account.fints_endpoint,
     )
-    sepa_account = [acc for acc in sepa_accounts if acc.iban == account.iban][0]
+    accounts = [acc for acc in sepa_accounts if acc.iban == account.iban]
+    if not accounts:
+        logger.error(f"Account for IBAN {account.iban} not found")
+        return []
+    sepa_account = accounts[0]
 
     if account.account_type == AccountType.HOLDING:
         transactions = retrieve_holdings(sepa_account, fints)

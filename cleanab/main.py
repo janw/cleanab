@@ -7,6 +7,7 @@ from .apps.base import BaseApp, load_app
 from .cleaner import FieldCleaner
 from .fints import process_fints_account
 from .holdings import process_holdings
+from .models import AccountConfig
 from .models.enums import AccountType
 from .transactions import process_transaction
 
@@ -113,9 +114,10 @@ class Cleanab:
         logger.info(f"Created {len(new)} new transactions")
         logger.info(f"Saw {len(duplicates)} duplicates")
 
-    def process_account_transactions(self, transactions, account):
+    def process_account_transactions(self, transactions: list, account: AccountConfig):
         for transaction in transactions:
-            yield self.app_connection.augment_transaction(
-                process_transaction(transaction, self.cleaner),
-                account,
-            )
+            if transaction:
+                yield self.app_connection.augment_transaction(
+                    process_transaction(transaction, self.cleaner),
+                    account,
+                )
