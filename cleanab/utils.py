@@ -36,15 +36,18 @@ def simple_replace_instance(string, replacement=""):
 
 @lru_cache()
 def regex_sub_instance(entry: ReplacementDefinition):
+    pattern = entry.pattern
+    if not entry.regex:
+        pattern = re.escape(pattern)
     regex = re.compile(
-        entry.pattern,
+        pattern,
         flags=re.IGNORECASE if entry.caseinsensitive else 0,
     )
 
     def substitute(x):
         transformed = {}
         for field, template in entry.transform.items():
-            match = regex.match(x)
+            match = regex.search(x)
             if not match:
                 continue
 

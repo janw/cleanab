@@ -3,6 +3,8 @@ from typing import Dict
 
 from pydantic import BaseModel, Extra
 
+from .. import utils
+
 
 class FieldsEnum(str, Enum):
     purpose = "purpose"
@@ -13,6 +15,7 @@ class ReplacementDefinition(BaseModel):
     pattern: str
     repl: str = ""
     caseinsensitive: bool = True
+    regex: bool = True
     transform: Dict[FieldsEnum, str] = {}
 
     def __hash__(self):
@@ -23,6 +26,9 @@ class ReplacementDefinition(BaseModel):
     class Config:
         frozen = True
         extra = Extra.forbid
+
+    def get_cleaner(self):
+        return utils.regex_sub_instance(self)
 
 
 class FinalizerDefinition(BaseModel):

@@ -1,5 +1,4 @@
 import re
-from functools import lru_cache
 
 from logzero import logger
 
@@ -43,7 +42,7 @@ class FieldCleaner:
             return utils.simple_replace_instance(entry)
 
         if isinstance(entry, ReplacementDefinition):
-            return utils.regex_sub_instance(entry)
+            return entry.get_cleaner()
 
         raise ValueError(f"Invalid replacement definition: {entry!r}")
 
@@ -68,11 +67,13 @@ class FieldCleaner:
 
             yield field, value
 
-    @lru_cache(maxsize=256)
     def clean_field(self, field, cleaned):
         transformations = {}
         for cleaner in self.cleaners.get(field, []):
+            before_cleaning = cleaned
             cleaned, local_transformations = cleaner(cleaned)
+            if before_cleaning != cleaned:
+                logger.debug(f"Cleaned '{before_cleaning}' => '{cleaned}'")
             transformations.update(local_transformations)
 
         return cleaned, transformations
