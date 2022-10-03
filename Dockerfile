@@ -1,11 +1,12 @@
-FROM registry.gitlab.com/janw/python-poetry:3.7-alpine as base
+FROM python:3.10-alpine as base
 
 WORKDIR /app
 COPY poetry.lock pyproject.toml ./
 
-RUN poetry export --without-hashes -f requirements.txt -o requirements.txt
+RUN apk add --update poetry && \
+    poetry export --without-hashes -f requirements.txt -o requirements.txt
 
-FROM python:3.7-alpine
+FROM python:3.10-alpine
 
 WORKDIR /app
 COPY --from=base /app/requirements.txt ./
