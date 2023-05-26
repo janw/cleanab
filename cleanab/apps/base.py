@@ -4,19 +4,11 @@ from typing import List, Tuple
 
 
 class BaseApp(ABC):
-    def get_accounts(self):
-        pass
-
-    def get_account_balance(self):
-        pass
-
-    def create_intermediary(self):
-        pass
-
     @abstractmethod
     def create_transactions(self, transactions) -> Tuple[List, List]:
         return [], []
 
+    @abstractmethod
     def augment_transaction(self, transaction, account):
         pass
 
